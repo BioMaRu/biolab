@@ -1,5 +1,14 @@
 // Base element styling. Body stays transparent so the macOS vibrancy shows through.
 
+// Flint's typeface — Geist (variable, bundled in /static/fonts).
+@font-face {
+	font-family: 'Geist';
+	src: url('/fonts/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
 * {
 	box-sizing: border-box;
 }
@@ -37,6 +46,24 @@ p {
 button {
 	font-family: inherit;
 	cursor: default;
+}
+
+// Accessible keyboard focus ring (Flint/Radix style). Pointer clicks stay clean;
+// only keyboard navigation shows the indigo ring.
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 
 // Thin, native-feeling scrollbars.

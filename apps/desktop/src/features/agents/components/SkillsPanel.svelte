@@ -5,12 +5,17 @@
 	import { skillRead } from '$features/agents/api'
 	import { notify } from '$lib/notify'
 	import { TOOLS, type Skill, type ToolId } from '$features/agents/types'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
 
 	interface Group {
 		name: string
 		description: string | null
 		byTool: Partial<Record<string, Skill>>
 	}
+
+	let query = $state('')
 
 	const groups = $derived.by<Group[]>(() => {
 		const map = new Map<string, Group>()
@@ -26,6 +31,16 @@
 		}
 		return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 	})
+
+	const filtered = $derived(
+		groups.filter((g) => {
+			const q = query.toLowerCase()
+			return (
+				g.name.toLowerCase().includes(q) ||
+				(g.description?.toLowerCase().includes(q) ?? false)
+			)
+		}),
+	)
 
 	let viewing = $state<{ name: string; content: string } | null>(null)
 
@@ -137,14 +152,29 @@
 </script>
 
 <div class="skills">
-	<p class="hint">
-		Share a skill once and link it into every agent — one source of truth in
-		<code>~/.agents/skills</code>
-		. Click a cell to link or unlink.
-	</p>
+	<PanelToolbar>
+		{#snippet start()}
+			<SearchField bind:value={query} placeholder="Filter skills…" />
+			<span class="legend">
+				One source in <code>~/.agents/skills</code>
+				, linked everywhere.
+			</span>
+		{/snippet}
+		{#snippet end()}
+			{#if groups.length}
+				<span class="count">
+					{filtered.length} of {groups.length}
+				</span>
+			{/if}
+		{/snippet}
+	</PanelToolbar>
 
 	{#if groups.length === 0}
-		<div class="empty">No skills found in any agent.</div>
+		<EmptyState
+			icon="ai"
+			title="No skills found"
+			hint="Skills are reusable instruction folders your agents can load. Add one under an agent, then share it across all of them from here."
+		/>
 	{:else}
 		<div class="table-wrap u-scroll">
 			<table>
@@ -159,7 +189,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each groups as g (g.name)}
+					{#each filtered as g (g.name)}
 						{@const central = status(g.byTool.central)}
 						<tr>
 							<td>
@@ -208,7 +238,12 @@
 											: 'Share to all agents'}
 										onclick={() => shareToAll(g)}
 									>
-										<Icon name="link" size={13} />
+										<Icon
+											name={isShared(g)
+												? 'check'
+												: 'link'}
+											size={13}
+										/>
 										{isShared(g)
 											? 'Shared'
 											: 'Share to all'}
@@ -219,6 +254,10 @@
 					{/each}
 				</tbody>
 			</table>
+
+			{#if filtered.length === 0}
+				<p class="no-match">No skills match “{query}”.</p>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -239,7 +278,10 @@
 			onclick={(e) => e.stopPropagation()}
 		>
 			<header>
-				<span class="mono strong">{viewing.name}/SKILL.md</span>
+				<div class="v-title">
+					<Icon name="file" size={14} />
+					<span class="mono strong">{viewing.name}/SKILL.md</span>
+				</div>
 				<button
 					class="x"
 					aria-label="Close"
@@ -260,27 +302,23 @@
 		height: 100%;
 	}
 
-	.hint {
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
+	.legend {
 		color: var(--text-tertiary);
-		font-size: rem(12);
-		border-bottom: 1px solid var(--border);
+		font-size: rem(11.5);
+		white-space: nowrap;
 
 		code {
 			font-family: var(--font-mono);
-			font-size: rem(11.5);
+			font-size: rem(11);
 			color: var(--text-secondary);
 		}
 	}
 
-	.empty {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		flex: 1;
+	.count {
 		color: var(--text-tertiary);
-		font-size: rem(13);
+		font-size: rem(11.5);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.table-wrap {
@@ -298,7 +336,7 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		padding: rem(8) rem(16);
+		padding: rem(9) rem(16);
 		color: var(--text-tertiary);
 		font-size: rem(11);
 		font-weight: 600;
@@ -319,7 +357,7 @@
 	}
 
 	tbody td {
-		padding: rem(7) rem(16);
+		padding: rem(8) rem(16);
 		border-bottom: 1px solid var(--border);
 		vertical-align: middle;
 	}
@@ -337,6 +375,7 @@
 	.mono {
 		font-family: var(--font-mono);
 		font-size: rem(12.5);
+		user-select: text;
 	}
 	.strong {
 		font-weight: 600;
@@ -381,7 +420,7 @@
 	}
 
 	.btn-tag {
-		cursor: pointer;
+		cursor: default;
 		transition: filter 0.12s ease;
 		&:hover {
 			filter: brightness(1.15);
@@ -431,12 +470,20 @@
 			background: color-mix(in srgb, var(--accent) 18%, transparent);
 		}
 		&:disabled {
-			color: var(--text-tertiary);
-			background: transparent;
-			border-color: var(--border);
+			color: var(--success);
+			background: color-mix(in srgb, var(--success) 10%, transparent);
+			border-color: color-mix(in srgb, var(--success) 28%, transparent);
 		}
 	}
 
+	.no-match {
+		padding: rem(28) rem(16);
+		color: var(--text-tertiary);
+		font-size: rem(12.5);
+		text-align: center;
+	}
+
+	/* Viewer ------------------------------------------------------------ */
 	.overlay {
 		position: fixed;
 		inset: 0;
@@ -481,6 +528,13 @@
 			word-break: break-word;
 			user-select: text;
 		}
+	}
+
+	.v-title {
+		display: flex;
+		align-items: center;
+		gap: rem(8);
+		color: var(--text-secondary);
 	}
 
 	.x {

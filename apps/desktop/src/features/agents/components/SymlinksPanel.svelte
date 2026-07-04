@@ -4,9 +4,29 @@
 	import { agentsStore } from '$features/agents/agents.svelte'
 	import { notify } from '$lib/notify'
 	import { tildePath } from '$features/agents/format'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
 
 	const links = $derived(agentsStore.inventory?.symlinks ?? [])
 	const brokenCount = $derived(links.filter((l) => l.broken).length)
+
+	let query = $state('')
+	let brokenOnly = $state(false)
+
+	const filtered = $derived(
+		links.filter((l) => {
+			if (brokenOnly && !l.broken) return false
+			const q = query.toLowerCase()
+			if (!q) return true
+			return (
+				l.path.toLowerCase().includes(q) ||
+				l.resolved.toLowerCase().includes(q) ||
+				l.tool.toLowerCase().includes(q) ||
+				l.category.toLowerCase().includes(q)
+			)
+		}),
+	)
 
 	let repairing = $state<string | null>(null)
 	let repairTarget = $state('')
@@ -48,18 +68,33 @@
 </script>
 
 <div class="symlinks">
-	<p class="hint">
-		Every symlink across your agents' skill and agent folders.
-		{#if brokenCount > 0}
-			<span class="warn">
-				<Icon name="alert" size={12} />
-				{brokenCount} broken — the target no longer exists.
-			</span>
-		{/if}
-	</p>
+	<PanelToolbar>
+		{#snippet start()}
+			<SearchField bind:value={query} placeholder="Filter links…" />
+			{#if brokenCount > 0}
+				<button
+					class="filter"
+					class:on={brokenOnly}
+					onclick={() => (brokenOnly = !brokenOnly)}
+				>
+					<Icon name="alert" size={12} />
+					{brokenCount} broken
+				</button>
+			{/if}
+		{/snippet}
+		{#snippet end()}
+			{#if links.length}
+				<span class="count">{filtered.length} of {links.length}</span>
+			{/if}
+		{/snippet}
+	</PanelToolbar>
 
 	{#if links.length === 0}
-		<div class="empty">No symlinks found.</div>
+		<EmptyState
+			icon="link"
+			title="No symlinks found"
+			hint="Symlinks across your agents' skill and command folders show up here — including any that have gone stale."
+		/>
 	{:else}
 		<div class="table-wrap u-scroll">
 			<table>
@@ -73,8 +108,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each links as l (l.path)}
-						<tr class:broken={l.broken}>
+					{#each filtered as l (l.path)}
+						<tr class:is-broken={l.broken}>
 							<td class="mono">{tildePath(l.path)}</td>
 							<td class="mono muted">
 								{#if repairing === l.path}
@@ -145,6 +180,14 @@
 					{/each}
 				</tbody>
 			</table>
+
+			{#if filtered.length === 0}
+				<p class="no-match">
+					{brokenOnly
+						? 'No broken links — nice.'
+						: `No links match “${query}”.`}
+				</p>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -156,32 +199,34 @@
 		height: 100%;
 	}
 
-	.hint {
-		display: flex;
-		align-items: center;
-		gap: rem(10);
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
-		color: var(--text-tertiary);
-		font-size: rem(12);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.warn {
+	.filter {
 		display: inline-flex;
 		align-items: center;
-		gap: rem(4);
+		gap: rem(5);
+		padding: rem(5) rem(10);
 		color: var(--danger);
+		font-size: rem(12);
 		font-weight: 500;
+		background: color-mix(in srgb, var(--danger) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--danger) 26%, transparent);
+		border-radius: var(--radius-sm);
+		transition: all 0.12s ease;
+
+		&:hover {
+			background: color-mix(in srgb, var(--danger) 16%, transparent);
+		}
+		&.on {
+			color: var(--accent-text);
+			background: var(--danger);
+			border-color: var(--danger);
+		}
 	}
 
-	.empty {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		flex: 1;
+	.count {
 		color: var(--text-tertiary);
-		font-size: rem(13);
+		font-size: rem(11.5);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.table-wrap {
@@ -199,7 +244,7 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		padding: rem(8) rem(16);
+		padding: rem(9) rem(16);
 		color: var(--text-tertiary);
 		font-size: rem(11);
 		font-weight: 600;
@@ -223,13 +268,17 @@
 	}
 
 	tbody td {
-		padding: rem(7) rem(16);
+		padding: rem(8) rem(16);
 		border-bottom: 1px solid var(--border);
 		white-space: nowrap;
 	}
 
 	tbody tr:hover td {
 		background: var(--hover);
+	}
+
+	tbody tr.is-broken .mono:first-child {
+		color: var(--danger);
 	}
 
 	.mono {
@@ -310,5 +359,12 @@
 		&.danger:hover {
 			color: var(--danger);
 		}
+	}
+
+	.no-match {
+		padding: rem(28) rem(16);
+		color: var(--text-tertiary);
+		font-size: rem(12.5);
+		text-align: center;
 	}
 </style>

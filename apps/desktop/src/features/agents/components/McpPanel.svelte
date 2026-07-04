@@ -1,22 +1,38 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition'
 	import { ask } from '@tauri-apps/plugin-dialog'
 	import Icon from '$components/Icon.svelte'
 	import { agentsStore } from '$features/agents/agents.svelte'
 	import { notify } from '$lib/notify'
 	import { TOOLS, type McpServer, type ToolId } from '$features/agents/types'
 	import McpEditor from './McpEditor.svelte'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
 
 	let selected = $state<{ name: string; tool: ToolId } | null>(null)
 	let editor = $state<{
 		initial: Partial<McpServer> | null
 		fixedTool: ToolId | null
 	} | null>(null)
+	let query = $state('')
 
 	const names = $derived(agentsStore.mcpNames)
+	const filtered = $derived(
+		names.filter((n) => n.toLowerCase().includes(query.toLowerCase())),
+	)
 
 	const sel = $derived(
 		selected ? agentsStore.mcpCell(selected.name, selected.tool) : null,
 	)
+
+	// How many agents run each server — shown as a small "reach" hint per row.
+	const reachOf = (name: string) =>
+		new Set(
+			[...agentsStore.mcpServers, ...agentsStore.disabled]
+				.filter((s) => s.name === name)
+				.map((s) => s.tool),
+		).size
 
 	// Any known definition of a name, used to seed a "copy here" edit.
 	function anyDef(name: string): McpServer | null {
@@ -87,142 +103,228 @@
 				)
 			: [],
 	)
+
+	const toolName = (id: string) => TOOLS.find((t) => t.id === id)?.name ?? id
 </script>
 
 <div class="mcp">
-	<div class="bar">
-		<p class="hint">
-			Each row is one MCP server; each column an agent. Click a cell to
-			manage it, or an empty cell to copy the server there.
-		</p>
-		<button
-			class="add"
-			onclick={() => (editor = { initial: null, fixedTool: null })}
-		>
-			<Icon name="plus" size={14} /> Add server
-		</button>
-	</div>
+	<PanelToolbar>
+		{#snippet start()}
+			<SearchField bind:value={query} placeholder="Filter servers…" />
+			{#if names.length}
+				<span class="count">
+					{filtered.length} of {names.length}
+				</span>
+			{/if}
+		{/snippet}
+		{#snippet end()}
+			<button
+				class="add"
+				onclick={() => (editor = { initial: null, fixedTool: null })}
+			>
+				<Icon name="plus" size={14} /> Add server
+			</button>
+		{/snippet}
+	</PanelToolbar>
 
 	{#if names.length === 0}
-		<div class="empty">No MCP servers configured in any agent yet.</div>
+		<EmptyState
+			icon="plug"
+			title="No MCP servers yet"
+			hint="Connect a Model Context Protocol server to give your agents new tools — filesystems, browsers, databases and more."
+		>
+			{#snippet action()}
+				<button
+					class="add"
+					onclick={() =>
+						(editor = { initial: null, fixedTool: null })}
+				>
+					<Icon name="plus" size={14} /> Add your first server
+				</button>
+			{/snippet}
+		</EmptyState>
 	{:else}
-		<div class="table-wrap u-scroll">
-			<table>
-				<thead>
-					<tr>
-						<th class="name-col">Server</th>
-						{#each TOOLS as t (t.id)}
-							<th class="tool-col">{t.short}</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each names as name (name)}
+		<div class="mcp-body">
+			<div class="matrix-wrap u-scroll">
+				<table>
+					<thead>
 						<tr>
-							<td class="name-col mono">{name}</td>
+							<th class="name-col">Server</th>
 							{#each TOOLS as t (t.id)}
-								{@const cell = agentsStore.mcpCell(name, t.id)}
-								<td class="tool-col">
-									<button
-										class="cell"
-										class:on={cell.configured && cell.on}
-										class:off={cell.configured && !cell.on}
-										class:empty={!cell.configured}
-										class:sel={selected?.name === name &&
-											selected?.tool === t.id}
-										title={cell.configured
-											? cell.on
-												? 'Enabled — click to manage'
-												: 'Disabled — click to manage'
-											: `Copy “${name}” to ${t.name}`}
-										onclick={() => openCell(name, t.id)}
-									>
-										{#if cell.configured}
-											<span class="dot"></span>
-											{cell.on ? 'on' : 'off'}
-										{:else}
-											<Icon name="plus" size={12} />
-										{/if}
-									</button>
-								</td>
+								<th class="tool-col">{t.short}</th>
 							{/each}
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	{/if}
+					</thead>
+					<tbody>
+						{#each filtered as name (name)}
+							{@const reach = reachOf(name)}
+							<tr>
+								<td class="name-col">
+									<div class="server-name">
+										<span class="mono">{name}</span>
+										<span class="reach">
+											{reach}/{TOOLS.length} agents
+										</span>
+									</div>
+								</td>
+								{#each TOOLS as t (t.id)}
+									{@const cell = agentsStore.mcpCell(
+										name,
+										t.id,
+									)}
+									<td class="tool-col">
+										<button
+											class="cell"
+											class:on={cell.configured &&
+												cell.on}
+											class:off={cell.configured &&
+												!cell.on}
+											class:empty={!cell.configured}
+											class:sel={selected?.name ===
+												name && selected?.tool === t.id}
+											title={cell.configured
+												? cell.on
+													? 'Enabled — click to manage'
+													: 'Disabled — click to manage'
+												: `Copy “${name}” to ${t.name}`}
+											onclick={() => openCell(name, t.id)}
+										>
+											{#if cell.configured}
+												<span class="dot"></span>
+												{cell.on ? 'On' : 'Off'}
+											{:else}
+												<Icon name="plus" size={12} />
+											{/if}
+										</button>
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 
-	{#if selected && sel?.server}
-		{@const s = sel.server}
-		<div class="drawer">
-			<div class="drawer-head">
-				<div class="title">
-					<span class="mono strong">{s.name}</span>
-					<span class="badge">{selected.tool}</span>
-					<span class="badge soft">{s.transport}</span>
-					<span
-						class="badge"
-						class:good={sel.on}
-						class:muted={!sel.on}
-					>
-						{sel.on ? 'enabled' : 'disabled'}
-					</span>
-				</div>
-				<button
-					class="x"
-					aria-label="Close"
-					onclick={() => (selected = null)}
-				>
-					<Icon name="close" size={15} />
-				</button>
+				{#if filtered.length === 0}
+					<p class="no-match">No servers match “{query}”.</p>
+				{/if}
 			</div>
 
-			<div class="def">
-				{#if s.transport === 'http'}
-					<div class="kv">
-						<span>URL</span>
-						<code>{s.url}</code>
-					</div>
-				{:else}
-					<div class="kv">
-						<span>Command</span>
-						<code>{s.command} {s.args.join(' ')}</code>
-					</div>
-					{#if Object.keys(s.env).length}
-						<div class="kv">
-							<span>Env</span>
-							<code>{Object.keys(s.env).join(', ')}</code>
+			{#if selected && sel?.server}
+				{@const s = sel.server}
+				<aside
+					class="inspector"
+					transition:fly={{ x: 16, duration: 150 }}
+				>
+					<div class="ins-head">
+						<div class="ins-title">
+							<span class="mono strong">{s.name}</span>
+							<span class="ins-sub">
+								in {toolName(selected.tool)}
+							</span>
 						</div>
-					{/if}
-				{/if}
-			</div>
-
-			<div class="actions">
-				<button class="btn" onclick={toggle}>
-					<Icon name={sel.on ? 'close' : 'check'} size={13} />
-					{sel.on ? 'Disable' : 'Enable'}
-				</button>
-				<button
-					class="btn"
-					onclick={() =>
-						(editor = { initial: s, fixedTool: selected!.tool })}
-				>
-					<Icon name="edit" size={13} /> Edit
-				</button>
-				<button class="btn danger" onclick={remove}>
-					<Icon name="trash" size={13} /> Remove
-				</button>
-				{#if missingTools.length}
-					<span class="copy-label">Copy to:</span>
-					{#each missingTools as t (t.id)}
-						<button class="btn ghost" onclick={() => copyTo(t.id)}>
-							<Icon name="external" size={12} />
-							{t.short}
+						<button
+							class="x"
+							aria-label="Close"
+							onclick={() => (selected = null)}
+						>
+							<Icon name="close" size={15} />
 						</button>
-					{/each}
-				{/if}
-			</div>
+					</div>
+
+					<div class="ins-body u-scroll">
+						<div class="badges">
+							<span class="badge soft">
+								<Icon
+									name={s.transport === 'http'
+										? 'globe'
+										: 'terminal'}
+									size={11}
+								/>
+								{s.transport}
+							</span>
+							<span
+								class="badge"
+								class:good={sel.on}
+								class:muted={!sel.on}
+							>
+								{sel.on ? 'enabled' : 'disabled'}
+							</span>
+						</div>
+
+						<div class="def">
+							{#if s.transport === 'http'}
+								<div class="kv">
+									<span>URL</span>
+									<code>{s.url}</code>
+								</div>
+							{:else}
+								<div class="kv">
+									<span>Command</span>
+									<code>{s.command} {s.args.join(' ')}</code>
+								</div>
+								{#if Object.keys(s.env).length}
+									<div class="kv">
+										<span>Env</span>
+										<code>
+											{Object.keys(s.env).join(', ')}
+										</code>
+									</div>
+								{/if}
+							{/if}
+						</div>
+
+						<div class="ins-actions">
+							<button
+								class="switch"
+								class:on={sel.on}
+								role="switch"
+								aria-checked={sel.on}
+								onclick={toggle}
+							>
+								<span class="sw-label">
+									{sel.on ? 'Enabled' : 'Disabled'}
+								</span>
+								<span class="sw-track">
+									<span class="sw-knob"></span>
+								</span>
+							</button>
+
+							<div class="btn-row">
+								<button
+									class="btn"
+									onclick={() =>
+										(editor = {
+											initial: s,
+											fixedTool: selected!.tool,
+										})}
+								>
+									<Icon name="edit" size={13} /> Edit
+								</button>
+								<button class="btn danger" onclick={remove}>
+									<Icon name="trash" size={13} /> Remove
+								</button>
+							</div>
+						</div>
+
+						{#if missingTools.length}
+							<div class="copy-block">
+								<span class="copy-title">
+									Copy to other agents
+								</span>
+								{#each missingTools as t (t.id)}
+									<button
+										class="copy-row"
+										onclick={() => copyTo(t.id)}
+									>
+										<Icon name="external" size={13} />
+										<span>{t.name}</span>
+										<Icon name="plus" size={13} />
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</aside>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -242,20 +344,11 @@
 		height: 100%;
 	}
 
-	.bar {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: rem(12);
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.hint {
+	.count {
 		color: var(--text-tertiary);
-		font-size: rem(12);
-		max-width: rem(520);
+		font-size: rem(11.5);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.add {
@@ -270,22 +363,21 @@
 		background: var(--accent);
 		border: none;
 		border-radius: var(--radius-sm);
+		transition: background-color 0.12s ease;
 		&:hover {
 			background: var(--accent-hover);
 		}
 	}
 
-	.empty {
+	.mcp-body {
 		display: flex;
-		justify-content: center;
-		align-items: center;
 		flex: 1;
-		color: var(--text-tertiary);
-		font-size: rem(13);
+		min-height: 0;
 	}
 
-	.table-wrap {
+	.matrix-wrap {
 		flex: 1;
+		min-width: 0;
 		min-height: 0;
 	}
 
@@ -299,7 +391,7 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		padding: rem(8) rem(16);
+		padding: rem(9) rem(16);
 		color: var(--text-tertiary);
 		font-size: rem(11);
 		font-weight: 600;
@@ -312,11 +404,11 @@
 	}
 
 	.tool-col {
-		width: rem(110);
+		width: rem(104);
 	}
 
 	tbody td {
-		padding: rem(6) rem(16);
+		padding: rem(7) rem(16);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -324,22 +416,32 @@
 		background: var(--hover);
 	}
 
-	.name-col {
-		font-weight: 500;
+	.server-name {
+		display: flex;
+		flex-direction: column;
+		gap: rem(2);
 	}
 
 	.mono {
 		font-family: var(--font-mono);
 		font-size: rem(12.5);
+		user-select: text;
+	}
+
+	.reach {
+		color: var(--text-tertiary);
+		font-size: rem(10.5);
 	}
 
 	.cell {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: rem(5);
-		min-width: rem(52);
-		padding: rem(3) rem(9);
+		min-width: rem(56);
+		padding: rem(4) rem(10);
 		font-size: rem(11.5);
+		font-weight: 500;
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: 999px;
@@ -368,40 +470,91 @@
 			&:hover {
 				opacity: 1;
 				color: var(--accent);
+				background: color-mix(in srgb, var(--accent) 10%, transparent);
 			}
 		}
 		&.sel {
-			outline: 2px solid var(--accent);
-			outline-offset: 1px;
+			box-shadow: 0 0 0 2px var(--accent);
 		}
 	}
 
-	.drawer {
-		flex-shrink: 0;
-		padding: rem(12) rem(16) rem(14);
-		background: var(--surface-2);
-		border-top: 1px solid var(--border);
+	.no-match {
+		padding: rem(28) rem(16);
+		color: var(--text-tertiary);
+		font-size: rem(12.5);
+		text-align: center;
 	}
 
-	.drawer-head {
+	/* Inspector --------------------------------------------------------- */
+	.inspector {
+		display: flex;
+		flex-direction: column;
+		width: rem(304);
+		flex-shrink: 0;
+		background: var(--surface-2);
+		border-left: 1px solid var(--border);
+	}
+
+	.ins-head {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		margin-bottom: rem(10);
-	}
-
-	.title {
-		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: rem(8);
-		flex-wrap: wrap;
+		flex-shrink: 0;
+		padding: rem(13) rem(14);
+		border-bottom: 1px solid var(--border);
 	}
 
-	.strong {
-		font-weight: 600;
+	.ins-title {
+		display: flex;
+		flex-direction: column;
+		gap: rem(2);
+		min-width: 0;
+
+		.strong {
+			overflow: hidden;
+			font-weight: 600;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+
+	.ins-sub {
+		color: var(--text-tertiary);
+		font-size: rem(11.5);
+	}
+
+	.x {
+		display: flex;
+		flex-shrink: 0;
+		color: var(--text-tertiary);
+		background: transparent;
+		border: none;
+		&:hover {
+			color: var(--text);
+		}
+	}
+
+	.ins-body {
+		display: flex;
+		flex-direction: column;
+		gap: rem(14);
+		flex: 1;
+		min-height: 0;
+		padding: rem(14);
+		overflow-y: auto;
+	}
+
+	.badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: rem(6);
 	}
 
 	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: rem(4);
 		padding: rem(2) rem(8);
 		color: var(--text-secondary);
 		font-size: rem(10.5);
@@ -424,64 +577,101 @@
 		}
 	}
 
-	.x {
-		display: flex;
-		color: var(--text-tertiary);
-		background: transparent;
-		border: none;
-		&:hover {
-			color: var(--text);
-		}
-	}
-
 	.def {
 		display: flex;
 		flex-direction: column;
-		gap: rem(6);
-		margin-bottom: rem(12);
+		gap: rem(10);
 	}
 
 	.kv {
 		display: flex;
-		gap: rem(10);
-		font-size: rem(12);
+		flex-direction: column;
+		gap: rem(4);
 
 		span {
-			flex-shrink: 0;
-			width: rem(64);
 			color: var(--text-tertiary);
 			text-transform: uppercase;
 			font-size: rem(10.5);
 			font-weight: 600;
-			padding-top: rem(2);
+			letter-spacing: 0.03em;
 		}
 		code {
-			font-family: var(--font-mono);
-			font-size: rem(12);
+			padding: rem(7) rem(9);
 			color: var(--text);
+			font-family: var(--font-mono);
+			font-size: rem(11.5);
+			line-height: 1.45;
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
 			word-break: break-all;
 			user-select: text;
 		}
 	}
 
-	.actions {
+	.ins-actions {
 		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: rem(6);
+		flex-direction: column;
+		gap: rem(8);
+		padding-top: rem(12);
+		border-top: 1px solid var(--border);
 	}
 
-	.copy-label {
-		margin-left: rem(6);
-		color: var(--text-tertiary);
-		font-size: rem(11.5);
+	.switch {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: rem(8);
+		padding: rem(8) rem(11);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+
+		.sw-label {
+			font-size: rem(12.5);
+			font-weight: 500;
+		}
+
+		.sw-track {
+			position: relative;
+			width: rem(34);
+			height: rem(20);
+			flex-shrink: 0;
+			background: var(--border-strong);
+			border-radius: 999px;
+			transition: background-color 0.16s ease;
+		}
+		.sw-knob {
+			position: absolute;
+			top: rem(2);
+			left: rem(2);
+			width: rem(16);
+			height: rem(16);
+			background: #fff;
+			border-radius: 50%;
+			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+			transition: transform 0.16s ease;
+		}
+		&.on .sw-track {
+			background: var(--success);
+		}
+		&.on .sw-knob {
+			transform: translateX(rem(14));
+		}
+	}
+
+	.btn-row {
+		display: flex;
+		gap: rem(6);
 	}
 
 	.btn {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: rem(5);
-		padding: rem(5) rem(11);
+		flex: 1;
+		padding: rem(7) rem(11);
 		color: var(--text-secondary);
 		font-size: rem(12);
 		background: var(--surface);
@@ -497,8 +687,50 @@
 			color: var(--danger);
 			border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 		}
-		&.ghost {
+	}
+
+	.copy-block {
+		display: flex;
+		flex-direction: column;
+		gap: rem(6);
+		padding-top: rem(12);
+		border-top: 1px solid var(--border);
+	}
+
+	.copy-title {
+		color: var(--text-tertiary);
+		font-size: rem(10.5);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.copy-row {
+		display: flex;
+		align-items: center;
+		gap: rem(8);
+		padding: rem(7) rem(10);
+		color: var(--text-secondary);
+		font-size: rem(12.5);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		transition: all 0.12s ease;
+
+		span {
+			flex: 1;
+			text-align: left;
+		}
+		:global(svg:last-child) {
 			color: var(--text-tertiary);
+		}
+		&:hover {
+			color: var(--accent);
+			border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+			background: color-mix(in srgb, var(--accent) 8%, transparent);
+			:global(svg:last-child) {
+				color: var(--accent);
+			}
 		}
 	}
 </style>

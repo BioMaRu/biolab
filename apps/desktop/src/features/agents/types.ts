@@ -1,5 +1,8 @@
 export type ToolId = 'claude' | 'codex' | 'opencode'
 
+/** The five sections of the Agents control center. */
+export type SectionId = 'overview' | 'mcp' | 'skills' | 'symlinks' | 'context'
+
 export interface AgentTool {
 	id: string
 	name: string

@@ -2,6 +2,9 @@
 	import { onMount } from 'svelte'
 	import { ask } from '@tauri-apps/plugin-dialog'
 	import Icon from '$components/Icon.svelte'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
 	import { portsStore } from '$features/ports/ports.svelte'
 	import { killProcess } from '$features/ports/api'
 	import { notify } from '$lib/notify'
@@ -128,20 +131,16 @@
 </script>
 
 <div class="ports">
-	<div class="toolbar">
-		<div class="search">
-			<Icon name="search" size={15} />
-			<input
-				type="text"
-				placeholder="Filter by port, process, PID, address…"
+	<PanelToolbar>
+		{#snippet start()}
+			<SearchField
+				grow
 				value={portsStore.query}
-				oninput={(e) => (portsStore.query = e.currentTarget.value)}
-				spellcheck="false"
-				autocorrect="off"
+				oninput={(v) => (portsStore.query = v)}
+				placeholder="Filter by port, process, PID, address…"
 			/>
-		</div>
-
-		<div class="meta">
+		{/snippet}
+		{#snippet end()}
 			<span class="count">
 				{#if portsStore.query.trim()}
 					{portsStore.filtered.length} of {portsStore.ports.length}
@@ -158,8 +157,8 @@
 			>
 				<Icon name="refresh" size={15} />
 			</button>
-		</div>
-	</div>
+		{/snippet}
+	</PanelToolbar>
 
 	<div class="quick-kill u-scroll">
 		<span class="qk-label"><Icon name="zap" size={13} /> Quick-kill</span>
@@ -217,20 +216,35 @@
 	</div>
 
 	{#if portsStore.error}
-		<div class="banner error">{portsStore.error}</div>
+		<div class="banner error">
+			<Icon name="alert" size={14} />
+			<span>{portsStore.error}</span>
+			<button class="banner-retry" onclick={() => portsStore.refresh()}>
+				Retry
+			</button>
+		</div>
 	{/if}
 
 	<div class="table-wrap u-scroll">
 		{#if portsStore.loading}
-			<div class="state">Loading ports…</div>
-		{:else if portsStore.filtered.length === 0}
 			<div class="state">
-				{#if portsStore.query.trim()}
-					No ports match “{portsStore.query}”.
-				{:else}
-					No listening ports found.
-				{/if}
+				<span class="spinner"></span>
+				Loading ports…
 			</div>
+		{:else if portsStore.filtered.length === 0}
+			{#if portsStore.query.trim()}
+				<EmptyState
+					icon="search"
+					title="No matching ports"
+					hint={`Nothing matches “${portsStore.query}”. Try a different port, process, PID, or address.`}
+				/>
+			{:else}
+				<EmptyState
+					icon="ports"
+					title="No listening ports"
+					hint="Nothing is bound right now. Start a dev server and hit refresh to see it here."
+				/>
+			{/if}
 		{:else}
 			<table>
 				<thead>
@@ -358,51 +372,6 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-	}
-
-	.toolbar {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: rem(12);
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.search {
-		display: flex;
-		align-items: center;
-		gap: rem(8);
-		flex: 1;
-		max-width: rem(420);
-		padding: rem(6) rem(10);
-		color: var(--text-tertiary);
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-
-		&:focus-within {
-			border-color: var(--accent);
-		}
-
-		input {
-			width: 100%;
-			color: var(--text);
-			font-family: inherit;
-			font-size: rem(13);
-			background: transparent;
-			border: none;
-			outline: none;
-			user-select: text;
-		}
-	}
-
-	.meta {
-		display: flex;
-		align-items: center;
-		gap: rem(10);
-		flex-shrink: 0;
 	}
 
 	.count {
@@ -557,13 +526,32 @@
 	}
 
 	.banner {
+		display: flex;
+		align-items: center;
+		gap: rem(8);
 		flex-shrink: 0;
-		padding: rem(8) rem(16);
+		padding: rem(9) rem(16);
 		font-size: rem(12.5);
 
 		&.error {
 			color: var(--danger);
 			background: color-mix(in srgb, var(--danger) 12%, transparent);
+			border-bottom: 1px solid
+				color-mix(in srgb, var(--danger) 24%, transparent);
+		}
+	}
+
+	.banner-retry {
+		margin-left: auto;
+		padding: rem(3) rem(10);
+		color: var(--danger);
+		font-size: rem(12);
+		font-weight: 600;
+		background: transparent;
+		border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+		border-radius: var(--radius-sm);
+		&:hover {
+			background: color-mix(in srgb, var(--danger) 14%, transparent);
 		}
 	}
 
@@ -576,9 +564,19 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		gap: rem(10);
 		height: 100%;
 		color: var(--text-tertiary);
 		font-size: rem(13);
+	}
+
+	.spinner {
+		width: rem(15);
+		height: rem(15);
+		border: 2px solid var(--border-strong);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
 	}
 
 	table {

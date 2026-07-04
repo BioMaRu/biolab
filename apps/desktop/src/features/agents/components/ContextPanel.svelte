@@ -1,14 +1,37 @@
 <script lang="ts">
+	import { ask } from '@tauri-apps/plugin-dialog'
 	import Icon from '$components/Icon.svelte'
 	import { agentsStore } from '$features/agents/agents.svelte'
 	import { contextRead, contextWrite } from '$features/agents/api'
 	import { notify } from '$lib/notify'
 	import { formatBytes, formatWhen, tildePath } from '$features/agents/format'
 	import type { ContextFile } from '$features/agents/types'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
+
+	let query = $state('')
 
 	const files = $derived(agentsStore.inventory?.contextFiles ?? [])
-	const globals = $derived(files.filter((f) => f.scope === 'global'))
-	const projects = $derived(files.filter((f) => f.scope !== 'global'))
+
+	const matches = (f: ContextFile) => {
+		const q = query.toLowerCase()
+		if (!q) return true
+		return (
+			f.kind.toLowerCase().includes(q) ||
+			f.path.toLowerCase().includes(q) ||
+			f.tool.toLowerCase().includes(q) ||
+			f.scope.toLowerCase().includes(q)
+		)
+	}
+
+	const globals = $derived(
+		files.filter((f) => f.scope === 'global').filter(matches),
+	)
+	const projects = $derived(
+		files.filter((f) => f.scope !== 'global').filter(matches),
+	)
+	const total = $derived(globals.length + projects.length)
 
 	let editing = $state<ContextFile | null>(null)
 	let content = $state('')
@@ -52,7 +75,18 @@
 		}
 	}
 
-	function close() {
+	async function close() {
+		if (dirty) {
+			const discard = await ask(
+				'You have unsaved changes. Discard them?',
+				{
+					title: 'Unsaved changes',
+					kind: 'warning',
+					okLabel: 'Discard',
+				},
+			)
+			if (!discard) return
+		}
 		editing = null
 		statusMsg = null
 	}
@@ -62,11 +96,15 @@
 	<div class="editor">
 		<div class="ed-head">
 			<button class="back" onclick={close}>
-				<Icon name="close" size={15} /> Back
+				<Icon name="chevron" size={15} /> Back
 			</button>
 			<div class="path">
 				<span class="badge">{editing.tool}</span>
 				<span class="mono">{tildePath(editing.path)}</span>
+				{#if dirty}<span
+						class="dirty-dot"
+						title="Unsaved changes"
+					></span>{/if}
 			</div>
 			<button class="save" disabled={!dirty || saving} onclick={save}>
 				<Icon name="check" size={14} />
@@ -80,79 +118,106 @@
 			placeholder="This file is empty. Start typing to create it…"></textarea>
 		<div class="ed-foot">
 			<span>{content.length} chars</span>
-			{#if statusMsg}<span class="ok">
-					{statusMsg}
-				</span>{:else if dirty}<span class="unsaved">
-					Unsaved changes
-				</span>{/if}
+			{#if statusMsg}<span class="ok">{statusMsg}</span>
+			{:else if dirty}<span class="unsaved">Unsaved changes</span>{/if}
 		</div>
 	</div>
 {:else}
 	<div class="ctx">
-		<p class="hint">
-			Global instruction files your agents read on every run, plus every
-			<code>CLAUDE.md</code>
-			/
-			<code>AGENTS.md</code>
-			across your projects. Edits are backed up automatically.
-		</p>
+		<PanelToolbar>
+			{#snippet start()}
+				<SearchField bind:value={query} placeholder="Filter files…" />
+				<span class="legend">
+					Instruction files your agents read on every run.
+				</span>
+			{/snippet}
+			{#snippet end()}
+				{#if files.length}
+					<span class="count">
+						{total} file{total === 1 ? '' : 's'}
+					</span>
+				{/if}
+			{/snippet}
+		</PanelToolbar>
 
-		<div class="list u-scroll">
-			<div class="group-label">Global</div>
-			{#each globals as f (f.path)}
-				<button class="row" onclick={() => open(f)}>
-					<div class="left">
-						<Icon name="file" size={15} />
-						<div class="labels">
-							<span class="kind">{f.kind}</span>
-							<span class="sub mono">{tildePath(f.path)}</span>
-						</div>
+		{#if files.length === 0}
+			<EmptyState
+				icon="file"
+				title="No context files"
+				hint="Global CLAUDE.md / AGENTS.md files and per-project instruction files will appear here once your agents create them."
+			/>
+		{:else if total === 0}
+			<p class="no-match">No files match “{query}”.</p>
+		{:else}
+			<div class="list u-scroll">
+				{#if globals.length}
+					<div class="group-label">
+						Global <span>{globals.length}</span>
 					</div>
-					<div class="right">
-						<span class="badge">{f.tool}</span>
-						{#if f.exists}
-							<span class="meta">
-								{formatBytes(f.bytes)} · {formatWhen(
-									f.modified,
-								)}
-							</span>
-						{:else}
-							<span class="meta absent">not created</span>
-						{/if}
-						<Icon name="edit" size={13} />
-					</div>
-				</button>
-			{/each}
-
-			{#if projects.length}
-				<div class="group-label">Projects</div>
-				{#each projects as f (f.path)}
-					<button class="row" onclick={() => open(f)}>
-						<div class="left">
-							<Icon name="file" size={15} />
-							<div class="labels">
-								<span class="kind">
-									{f.kind}
-									<span class="scope">· {f.scope}</span>
+					{#each globals as f (f.path)}
+						<button class="row" onclick={() => open(f)}>
+							<div class="left">
+								<span class="row-icon">
+									<Icon name="file" size={15} />
 								</span>
-								<span class="sub mono">
-									{tildePath(f.path)}
-								</span>
+								<div class="labels">
+									<span class="kind">{f.kind}</span>
+									<span class="sub mono">
+										{tildePath(f.path)}
+									</span>
+								</div>
 							</div>
-						</div>
-						<div class="right">
-							<span class="badge">{f.tool}</span>
-							<span class="meta">
-								{formatBytes(f.bytes)} · {formatWhen(
-									f.modified,
-								)}
-							</span>
-							<Icon name="edit" size={13} />
-						</div>
-					</button>
-				{/each}
-			{/if}
-		</div>
+							<div class="right">
+								<span class="badge">{f.tool}</span>
+								{#if f.exists}
+									<span class="meta">
+										{formatBytes(f.bytes)} · {formatWhen(
+											f.modified,
+										)}
+									</span>
+								{:else}
+									<span class="meta absent">not created</span>
+								{/if}
+								<Icon name="edit" size={13} />
+							</div>
+						</button>
+					{/each}
+				{/if}
+
+				{#if projects.length}
+					<div class="group-label">
+						Projects <span>{projects.length}</span>
+					</div>
+					{#each projects as f (f.path)}
+						<button class="row" onclick={() => open(f)}>
+							<div class="left">
+								<span class="row-icon">
+									<Icon name="folder" size={15} />
+								</span>
+								<div class="labels">
+									<span class="kind">
+										{f.kind}
+										<span class="scope">· {f.scope}</span>
+									</span>
+									<span class="sub mono">
+										{tildePath(f.path)}
+									</span>
+								</div>
+							</div>
+							<div class="right">
+								<span class="badge">{f.tool}</span>
+								<span class="meta">
+									{formatBytes(f.bytes)} · {formatWhen(
+										f.modified,
+									)}
+								</span>
+								<Icon name="edit" size={13} />
+							</div>
+						</button>
+					{/each}
+				{/if}
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -163,18 +228,17 @@
 		height: 100%;
 	}
 
-	.hint {
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
+	.legend {
 		color: var(--text-tertiary);
-		font-size: rem(12);
-		border-bottom: 1px solid var(--border);
+		font-size: rem(11.5);
+		white-space: nowrap;
+	}
 
-		code {
-			font-family: var(--font-mono);
-			font-size: rem(11.5);
-			color: var(--text-secondary);
-		}
+	.count {
+		color: var(--text-tertiary);
+		font-size: rem(11.5);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	.list {
@@ -184,12 +248,22 @@
 	}
 
 	.group-label {
-		padding: rem(10) rem(4) rem(6);
+		display: flex;
+		align-items: center;
+		gap: rem(7);
+		padding: rem(12) rem(4) rem(6);
 		color: var(--text-tertiary);
 		font-size: rem(11);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+
+		span {
+			padding: rem(1) rem(7);
+			font-size: rem(10.5);
+			background: var(--surface-2);
+			border-radius: 999px;
+		}
 	}
 
 	.row {
@@ -214,9 +288,20 @@
 	.left {
 		display: flex;
 		align-items: center;
-		gap: rem(10);
+		gap: rem(11);
 		min-width: 0;
+	}
+
+	.row-icon {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: rem(30);
+		height: rem(30);
+		flex-shrink: 0;
 		color: var(--text-secondary);
+		background: var(--surface-2);
+		border-radius: var(--radius-sm);
 	}
 
 	.labels {
@@ -278,7 +363,14 @@
 		}
 	}
 
-	/* Editor */
+	.no-match {
+		padding: rem(28) rem(16);
+		color: var(--text-tertiary);
+		font-size: rem(12.5);
+		text-align: center;
+	}
+
+	/* Editor ------------------------------------------------------------ */
 	.editor {
 		display: flex;
 		flex-direction: column;
@@ -298,11 +390,15 @@
 	.back {
 		display: inline-flex;
 		align-items: center;
-		gap: rem(5);
+		gap: rem(4);
 		color: var(--text-secondary);
 		font-size: rem(12.5);
 		background: transparent;
 		border: none;
+
+		:global(svg) {
+			transform: rotate(180deg);
+		}
 		&:hover {
 			color: var(--text);
 		}
@@ -323,6 +419,14 @@
 			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
+	}
+
+	.dirty-dot {
+		width: rem(7);
+		height: rem(7);
+		flex-shrink: 0;
+		background: var(--warning);
+		border-radius: 50%;
 	}
 
 	.save {

@@ -228,25 +228,36 @@
 	.segmented {
 		display: flex;
 		flex-shrink: 0;
-		padding: rem(2);
+		padding: rem(3);
 		background: var(--surface-2);
 		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		border-radius: rem(9);
 
 		button {
 			padding: rem(4) rem(12);
 			color: var(--text-secondary);
+			font-family: inherit;
 			font-size: rem(12.5);
 			font-weight: 500;
 			background: transparent;
 			border: none;
 			border-radius: rem(6);
-			transition: all 0.12s ease;
+			transition:
+				background-color 0.14s ease,
+				color 0.14s ease,
+				box-shadow 0.14s ease;
+
+			&:hover:not(.active):not(:disabled) {
+				color: var(--text);
+				background: var(--hover);
+			}
 
 			&.active {
 				color: var(--text);
 				background: var(--surface);
-				box-shadow: var(--shadow);
+				box-shadow:
+					0 1px 2px rgba(0, 0, 0, 0.14),
+					0 0 0 0.5px rgba(0, 0, 0, 0.04);
 			}
 
 			&:disabled {

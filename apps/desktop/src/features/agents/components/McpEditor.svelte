@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte'
+	import { fade, scale } from 'svelte/transition'
 	import Icon from '$components/Icon.svelte'
 	import { agentsStore } from '$features/agents/agents.svelte'
 	import { TOOLS, type McpServer, type ToolId } from '$features/agents/types'
@@ -99,6 +100,7 @@
 	class="overlay"
 	role="button"
 	tabindex="-1"
+	transition:fade={{ duration: 120 }}
 	onclick={onClose}
 	onkeydown={(e) => e.key === 'Escape' && onClose()}
 >
@@ -107,10 +109,14 @@
 		class="card"
 		role="dialog"
 		tabindex="-1"
+		transition:scale={{ start: 0.96, duration: 160 }}
 		onclick={(e) => e.stopPropagation()}
 	>
 		<header>
-			<h3>{editing ? 'Edit MCP server' : 'Add MCP server'}</h3>
+			<div class="h-title">
+				<span class="h-icon"><Icon name="plug" size={14} /></span>
+				<h3>{editing ? 'Edit MCP server' : 'Add MCP server'}</h3>
+			</div>
 			<button class="x" aria-label="Close" onclick={onClose}>
 				<Icon name="close" size={16} />
 			</button>
@@ -159,7 +165,7 @@
 						class:on={transport === 'stdio'}
 						onclick={() => (transport = 'stdio')}
 					>
-						stdio (local)
+						<Icon name="terminal" size={12} /> stdio (local)
 					</button>
 					<button
 						type="button"
@@ -167,7 +173,7 @@
 						class:on={transport === 'http'}
 						onclick={() => (transport = 'http')}
 					>
-						http (remote)
+						<Icon name="globe" size={12} /> http (remote)
 					</button>
 				</div>
 			</div>
@@ -263,6 +269,23 @@
 			font-size: rem(14);
 			font-weight: 600;
 		}
+	}
+
+	.h-title {
+		display: flex;
+		align-items: center;
+		gap: rem(9);
+	}
+
+	.h-icon {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: rem(26);
+		height: rem(26);
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+		border-radius: var(--radius-sm);
 	}
 
 	.x {
