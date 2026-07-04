@@ -572,9 +572,20 @@ struct LimitBar {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct ExtraUsage {
+    enabled: bool,
+    used: f64,
+    limit: f64,
+    currency: String,
+    percent: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClaudeLimits {
     plan: Option<String>,
     bars: Vec<LimitBar>,
+    extra: Option<ExtraUsage>,
 }
 
 fn title_case(s: &str) -> String {
@@ -620,6 +631,10 @@ fn read_claude_creds() -> Result<(String, Option<String>), String> {
 
 #[tauri::command]
 pub fn claude_usage_limits() -> Result<ClaudeLimits, String> {
+    fetch_claude_limits()
+}
+
+fn fetch_claude_limits() -> Result<ClaudeLimits, String> {
     let (token, sub) = read_claude_creds()?;
 
     let out = Command::new("curl")
@@ -692,8 +707,169 @@ pub fn claude_usage_limits() -> Result<ClaudeLimits, String> {
         return Err("No usage limits were returned.".into());
     }
 
+    // Extra usage (pay-as-you-go credits) from the `spend` block.
+    let extra = v.get("spend").map(|s| {
+        let money = |key: &str| -> Option<f64> {
+            let m = s.get(key)?;
+            let minor = m.get("amount_minor")?.as_f64()?;
+            let exp = m.get("exponent").and_then(|x| x.as_i64()).unwrap_or(2);
+            Some(minor / 10f64.powi(exp as i32))
+        };
+        let currency = s
+            .get("used")
+            .and_then(|u| u.get("currency"))
+            .and_then(|c| c.as_str())
+            .unwrap_or("USD")
+            .to_string();
+        ExtraUsage {
+            enabled: s.get("enabled").and_then(|x| x.as_bool()).unwrap_or(false),
+            used: money("used").unwrap_or(0.0),
+            limit: money("limit").unwrap_or(0.0),
+            currency,
+            percent: s.get("percent").and_then(|x| x.as_f64()).unwrap_or(0.0),
+        }
+    });
+
     Ok(ClaudeLimits {
         plan: sub.map(|s| title_case(&s)),
         bars,
+        extra,
     })
+}
+
+// --- Native tray summaries --------------------------------------------------
+// Compact, pre-formatted lines the macOS tray menu renders as (disabled) items.
+
+fn fmt_tokens(n: i64) -> String {
+    let f = n as f64;
+    if f >= 1e9 {
+        format!("{:.1}B", f / 1e9)
+    } else if f >= 1e7 {
+        format!("{:.0}M", f / 1e6)
+    } else if f >= 1e6 {
+        format!("{:.1}M", f / 1e6)
+    } else if f >= 1e4 {
+        format!("{:.0}K", f / 1e3)
+    } else if f >= 1e3 {
+        format!("{:.1}K", f / 1e3)
+    } else {
+        n.to_string()
+    }
+}
+
+fn fmt_usd(n: f64) -> String {
+    if n <= 0.0 {
+        "$0".into()
+    } else if n < 1000.0 {
+        format!("${n:.2}")
+    } else {
+        format!("${n:.0}")
+    }
+}
+
+fn fmt_reset(resets_at: Option<i64>, now: i64) -> String {
+    let Some(r) = resets_at else {
+        return "—".into();
+    };
+    let s = r - now;
+    if s <= 0 {
+        return "resets now".into();
+    }
+    let h = s / 3600;
+    let d = h / 24;
+    if d >= 1 {
+        format!("resets {}d {}h", d, h % 24)
+    } else if h >= 1 {
+        format!("resets {}h {}m", h, (s % 3600) / 60)
+    } else {
+        format!("resets {}m", s / 60)
+    }
+}
+
+/// One agent's block for the tray menu: a title, a right-aligned headline
+/// (plan / model) and a set of pre-formatted detail lines.
+pub struct AgentSummary {
+    pub name: String,
+    pub headline: String,
+    pub lines: Vec<String>,
+}
+
+fn window_of<'a>(p: &'a ProviderUsage, key: &str) -> Option<&'a WindowStat> {
+    p.windows.iter().find(|w| w.key == key)
+}
+
+pub fn agent_summaries() -> Vec<AgentSummary> {
+    let now = now_secs();
+    let mut out = Vec::new();
+
+    // Claude — plan limits (live) + local totals.
+    let cu = claude_usage();
+    let mut lines = Vec::new();
+    let mut headline = String::new();
+    match fetch_claude_limits() {
+        Ok(lim) => {
+            headline = lim.plan.clone().unwrap_or_default();
+            for b in &lim.bars {
+                let short = match b.kind.as_str() {
+                    "session" => "Session",
+                    "weekly_all" => "Weekly",
+                    "weekly_scoped" => "Fable",
+                    _ => b.label.as_str(),
+                };
+                lines.push(format!(
+                    "{short}   {}% used · {}",
+                    b.percent.round() as i64,
+                    fmt_reset(b.resets_at, now)
+                ));
+            }
+            if let Some(x) = &lim.extra {
+                if x.enabled {
+                    lines.push(format!(
+                        "Extra usage   {} / {} {}",
+                        format!("{:.2}", x.used),
+                        format!("{:.0}", x.limit),
+                        x.currency
+                    ));
+                }
+            }
+        }
+        Err(_) => lines.push("Plan limits unavailable (open Claude Code)".into()),
+    }
+    if let Some(t) = window_of(&cu, "today") {
+        lines.push(format!("Today   {} · {}", fmt_tokens(t.total), fmt_usd(t.cost)));
+    }
+    if let Some(a) = window_of(&cu, "all") {
+        lines.push(format!("All time   {} · {}", fmt_tokens(a.total), fmt_usd(a.cost)));
+    }
+    let top = cu.models.first().map(|m| m.model.clone()).unwrap_or_default();
+    lines.push(format!("{} sessions · {top}", cu.sessions));
+    out.push(AgentSummary {
+        name: cu.name.clone(),
+        headline,
+        lines,
+    });
+
+    // Codex + OpenCode — local totals (plan metered elsewhere).
+    for pu in [codex_usage(), opencode_usage()] {
+        let mut lines = Vec::new();
+        if pu.tracked {
+            if let Some(t) = window_of(&pu, "today") {
+                lines.push(format!("Today   {}", fmt_tokens(t.total)));
+            }
+            if let Some(a) = window_of(&pu, "all") {
+                lines.push(format!("All time   {}", fmt_tokens(a.total)));
+            }
+            lines.push(format!("{} sessions", pu.sessions));
+        } else {
+            lines.push(pu.note.clone().unwrap_or_else(|| "Not tracked".into()));
+        }
+        let headline = pu.models.first().map(|m| m.model.clone()).unwrap_or_default();
+        out.push(AgentSummary {
+            name: pu.name.clone(),
+            headline,
+            lines,
+        });
+    }
+
+    out
 }

@@ -40,12 +40,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window hides it to the menu bar instead of quitting.
+            // Closing the main window hides it to the menu bar instead of quitting.
             // The app keeps running in the tray; Quit (⌘Q) exits for real.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
-                // Freshen the menu-bar menu now that tray-only usage begins.
                 use tauri::Manager;
                 tray::refresh(window.app_handle());
             }

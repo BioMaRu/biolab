@@ -58,8 +58,18 @@ export interface LimitBar {
 	isActive: boolean
 }
 
+/** Pay-as-you-go "extra usage" credits (from the spend block). */
+export interface ExtraUsage {
+	enabled: boolean
+	used: number
+	limit: number
+	currency: string
+	percent: number
+}
+
 /** Live plan limits from Anthropic's OAuth usage endpoint. */
 export interface ClaudeLimits {
 	plan: string | null
 	bars: LimitBar[]
+	extra: ExtraUsage | null
 }
