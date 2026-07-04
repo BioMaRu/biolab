@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
 	import { getVersion } from '@tauri-apps/api/app'
-	import { themeStore, type ThemeMode } from '$features/theme/app-theme.svelte'
+	import {
+		themeStore,
+		type ThemeMode,
+	} from '$features/theme/app-theme.svelte'
 	import { configStore } from '$features/settings/config.svelte'
 	import { checkForUpdates } from '$lib/updater'
 
@@ -52,7 +55,9 @@
 			<div class="setting">
 				<div class="label">
 					<span class="name">Theme</span>
-					<span class="hint">Follow the system, or force light / dark.</span>
+					<span class="hint">
+						Follow the system, or force light / dark.
+					</span>
 				</div>
 				<div class="segmented">
 					{#each themeOptions as opt (opt.value)}
@@ -72,7 +77,9 @@
 			<div class="setting">
 				<div class="label">
 					<span class="name">Auto-refresh</span>
-					<span class="hint">Periodically refresh the port list.</span>
+					<span class="hint">
+						Periodically refresh the port list.
+					</span>
 				</div>
 				<button
 					class="switch"
@@ -80,7 +87,8 @@
 					role="switch"
 					aria-checked={configStore.autoRefresh}
 					aria-label="Toggle auto-refresh"
-					onclick={() => configStore.setAutoRefresh(!configStore.autoRefresh)}
+					onclick={() =>
+						configStore.setAutoRefresh(!configStore.autoRefresh)}
 				>
 					<span class="knob"></span>
 				</button>
@@ -93,9 +101,11 @@
 				<div class="segmented">
 					{#each intervalOptions as opt (opt.value)}
 						<button
-							class:active={configStore.refreshIntervalMs === opt.value}
+							class:active={configStore.refreshIntervalMs ===
+								opt.value}
 							disabled={!configStore.autoRefresh}
-							onclick={() => configStore.setRefreshInterval(opt.value)}
+							onclick={() =>
+								configStore.setRefreshInterval(opt.value)}
 						>
 							{opt.label}
 						</button>
@@ -128,8 +138,10 @@
 							{port}
 							<button
 								aria-label={`Remove ${port}`}
-								onclick={() => configStore.removeFavorite(port)}>×</button
+								onclick={() => configStore.removeFavorite(port)}
 							>
+								×
+							</button>
 						</span>
 					{/each}
 				</div>
@@ -143,7 +155,11 @@
 					<span class="name">Version</span>
 					<span class="hint">BioLab {version || '…'}</span>
 				</div>
-				<button class="btn" disabled={checking} onclick={runUpdateCheck}>
+				<button
+					class="btn"
+					disabled={checking}
+					onclick={runUpdateCheck}
+				>
 					{checking ? 'Checking…' : 'Check for Updates'}
 				</button>
 			</div>
@@ -212,25 +228,36 @@
 	.segmented {
 		display: flex;
 		flex-shrink: 0;
-		padding: rem(2);
+		padding: rem(3);
 		background: var(--surface-2);
 		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		border-radius: rem(9);
 
 		button {
 			padding: rem(4) rem(12);
 			color: var(--text-secondary);
+			font-family: inherit;
 			font-size: rem(12.5);
 			font-weight: 500;
 			background: transparent;
 			border: none;
 			border-radius: rem(6);
-			transition: all 0.12s ease;
+			transition:
+				background-color 0.14s ease,
+				color 0.14s ease,
+				box-shadow 0.14s ease;
+
+			&:hover:not(.active):not(:disabled) {
+				color: var(--text);
+				background: var(--hover);
+			}
 
 			&.active {
 				color: var(--text);
 				background: var(--surface);
-				box-shadow: var(--shadow);
+				box-shadow:
+					0 1px 2px rgba(0, 0, 0, 0.14),
+					0 0 0 0.5px rgba(0, 0, 0, 0.04);
 			}
 
 			&:disabled {

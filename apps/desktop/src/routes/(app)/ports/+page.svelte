@@ -2,6 +2,9 @@
 	import { onMount } from 'svelte'
 	import { ask } from '@tauri-apps/plugin-dialog'
 	import Icon from '$components/Icon.svelte'
+	import PanelToolbar from '$components/PanelToolbar.svelte'
+	import SearchField from '$components/SearchField.svelte'
+	import EmptyState from '$components/EmptyState.svelte'
 	import { portsStore } from '$features/ports/ports.svelte'
 	import { killProcess } from '$features/ports/api'
 	import { notify } from '$lib/notify'
@@ -59,12 +62,15 @@
 
 	async function killPort(p: PortInfo, force: boolean) {
 		const label = `${p.processName} (PID ${p.pid}) on port ${p.port}`
-		const confirmed = await ask(`${force ? 'Force kill' : 'Kill'} ${label}?`, {
-			title: force ? 'Force Kill Process' : 'Kill Process',
-			kind: 'warning',
-			okLabel: force ? 'Force Kill' : 'Kill',
-			cancelLabel: 'Cancel',
-		})
+		const confirmed = await ask(
+			`${force ? 'Force kill' : 'Kill'} ${label}?`,
+			{
+				title: force ? 'Force Kill Process' : 'Kill Process',
+				kind: 'warning',
+				okLabel: force ? 'Force Kill' : 'Kill',
+				cancelLabel: 'Cancel',
+			},
+		)
 		if (!confirmed) return
 
 		busyPid = p.pid
@@ -73,7 +79,10 @@
 			await portsStore.refresh()
 			await notify('Port freed', `Killed ${label}`)
 		} catch (e) {
-			await notify('Kill failed', e instanceof Error ? e.message : String(e))
+			await notify(
+				'Kill failed',
+				e instanceof Error ? e.message : String(e),
+			)
 		} finally {
 			busyPid = null
 		}
@@ -84,8 +93,7 @@
 		if (matches.length === 0) return
 
 		const names = [...new Set(matches.map((m) => m.processName))].join(', ')
-		const what =
-			matches.length > 1 ? `${matches.length} processes` : names
+		const what = matches.length > 1 ? `${matches.length} processes` : names
 		const confirmed = await ask(`Kill ${what} on port ${port}?`, {
 			title: 'Kill Process',
 			kind: 'warning',
@@ -101,7 +109,10 @@
 			await portsStore.refresh()
 			await notify('Port freed', `Freed port ${port} (${names})`)
 		} catch (e) {
-			await notify('Kill failed', e instanceof Error ? e.message : String(e))
+			await notify(
+				'Kill failed',
+				e instanceof Error ? e.message : String(e),
+			)
 		}
 	}
 
@@ -120,20 +131,16 @@
 </script>
 
 <div class="ports">
-	<div class="toolbar">
-		<div class="search">
-			<Icon name="search" size={15} />
-			<input
-				type="text"
-				placeholder="Filter by port, process, PID, address…"
+	<PanelToolbar>
+		{#snippet start()}
+			<SearchField
+				grow
 				value={portsStore.query}
-				oninput={(e) => (portsStore.query = e.currentTarget.value)}
-				spellcheck="false"
-				autocorrect="off"
+				oninput={(v) => (portsStore.query = v)}
+				placeholder="Filter by port, process, PID, address…"
 			/>
-		</div>
-
-		<div class="meta">
+		{/snippet}
+		{#snippet end()}
 			<span class="count">
 				{#if portsStore.query.trim()}
 					{portsStore.filtered.length} of {portsStore.ports.length}
@@ -150,8 +157,8 @@
 			>
 				<Icon name="refresh" size={15} />
 			</button>
-		</div>
-	</div>
+		{/snippet}
+	</PanelToolbar>
 
 	<div class="quick-kill u-scroll">
 		<span class="qk-label"><Icon name="zap" size={13} /> Quick-kill</span>
@@ -209,20 +216,35 @@
 	</div>
 
 	{#if portsStore.error}
-		<div class="banner error">{portsStore.error}</div>
+		<div class="banner error">
+			<Icon name="alert" size={14} />
+			<span>{portsStore.error}</span>
+			<button class="banner-retry" onclick={() => portsStore.refresh()}>
+				Retry
+			</button>
+		</div>
 	{/if}
 
 	<div class="table-wrap u-scroll">
 		{#if portsStore.loading}
-			<div class="state">Loading ports…</div>
-		{:else if portsStore.filtered.length === 0}
 			<div class="state">
-				{#if portsStore.query.trim()}
-					No ports match “{portsStore.query}”.
-				{:else}
-					No listening ports found.
-				{/if}
+				<span class="spinner"></span>
+				Loading ports…
 			</div>
+		{:else if portsStore.filtered.length === 0}
+			{#if portsStore.query.trim()}
+				<EmptyState
+					icon="search"
+					title="No matching ports"
+					hint={`Nothing matches “${portsStore.query}”. Try a different port, process, PID, or address.`}
+				/>
+			{:else}
+				<EmptyState
+					icon="ports"
+					title="No listening ports"
+					hint="Nothing is bound right now. Start a dev server and hit refresh to see it here."
+				/>
+			{/if}
 		{:else}
 			<table>
 				<thead>
@@ -239,12 +261,17 @@
 					{#each portsStore.filtered as p (rowKey(p))}
 						<tr class:busy={busyPid === p.pid}>
 							<td class="col-port mono">{p.port}</td>
-							<td class="proc" title={p.command}>{p.processName}</td>
+							<td class="proc" title={p.command}>
+								{p.processName}
+							</td>
 							<td class="col-pid mono">{p.pid}</td>
 							<td class="col-proto">{p.protocol}</td>
 							<td class="mono addr">{p.address}</td>
 							<td class="col-actions">
-								<div class="row-actions" class:pinned={expandedKey === rowKey(p)}>
+								<div
+									class="row-actions"
+									class:pinned={expandedKey === rowKey(p)}
+								>
 									<button
 										class="act"
 										class:on={expandedKey === rowKey(p)}
@@ -281,27 +308,51 @@
 									<div class="detail">
 										<div class="field">
 											<span class="label">Command</span>
-											<code class="value">{p.command}</code>
+											<code class="value">
+												{p.command}
+											</code>
 										</div>
 										<div class="field-row">
 											<div class="field">
 												<span class="label">User</span>
-												<span class="value">{p.user || '—'}</span>
+												<span class="value">
+													{p.user || '—'}
+												</span>
 											</div>
 											<div class="copy-actions">
 												<button
 													class="copy-btn"
-													onclick={() => copyField(rowKey(p) + ':pid', String(p.pid))}
+													onclick={() =>
+														copyField(
+															rowKey(p) + ':pid',
+															String(p.pid),
+														)}
 												>
-													<Icon name="copy" size={13} />
-													{copied === rowKey(p) + ':pid' ? 'Copied' : 'Copy PID'}
+													<Icon
+														name="copy"
+														size={13}
+													/>
+													{copied ===
+													rowKey(p) + ':pid'
+														? 'Copied'
+														: 'Copy PID'}
 												</button>
 												<button
 													class="copy-btn"
-													onclick={() => copyField(rowKey(p) + ':cmd', p.command)}
+													onclick={() =>
+														copyField(
+															rowKey(p) + ':cmd',
+															p.command,
+														)}
 												>
-													<Icon name="copy" size={13} />
-													{copied === rowKey(p) + ':cmd' ? 'Copied' : 'Copy command'}
+													<Icon
+														name="copy"
+														size={13}
+													/>
+													{copied ===
+													rowKey(p) + ':cmd'
+														? 'Copied'
+														: 'Copy command'}
 												</button>
 											</div>
 										</div>
@@ -323,51 +374,6 @@
 		height: 100%;
 	}
 
-	.toolbar {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: rem(12);
-		flex-shrink: 0;
-		padding: rem(12) rem(16);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.search {
-		display: flex;
-		align-items: center;
-		gap: rem(8);
-		flex: 1;
-		max-width: rem(420);
-		padding: rem(6) rem(10);
-		color: var(--text-tertiary);
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-
-		&:focus-within {
-			border-color: var(--accent);
-		}
-
-		input {
-			width: 100%;
-			color: var(--text);
-			font-family: inherit;
-			font-size: rem(13);
-			background: transparent;
-			border: none;
-			outline: none;
-			user-select: text;
-		}
-	}
-
-	.meta {
-		display: flex;
-		align-items: center;
-		gap: rem(10);
-		flex-shrink: 0;
-	}
-
 	.count {
 		color: var(--text-secondary);
 		font-size: rem(12.5);
@@ -384,7 +390,9 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			color: var(--text);
@@ -518,13 +526,32 @@
 	}
 
 	.banner {
+		display: flex;
+		align-items: center;
+		gap: rem(8);
 		flex-shrink: 0;
-		padding: rem(8) rem(16);
+		padding: rem(9) rem(16);
 		font-size: rem(12.5);
 
 		&.error {
 			color: var(--danger);
 			background: color-mix(in srgb, var(--danger) 12%, transparent);
+			border-bottom: 1px solid
+				color-mix(in srgb, var(--danger) 24%, transparent);
+		}
+	}
+
+	.banner-retry {
+		margin-left: auto;
+		padding: rem(3) rem(10);
+		color: var(--danger);
+		font-size: rem(12);
+		font-weight: 600;
+		background: transparent;
+		border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+		border-radius: var(--radius-sm);
+		&:hover {
+			background: color-mix(in srgb, var(--danger) 14%, transparent);
 		}
 	}
 
@@ -537,9 +564,19 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		gap: rem(10);
 		height: 100%;
 		color: var(--text-tertiary);
 		font-size: rem(13);
+	}
+
+	.spinner {
+		width: rem(15);
+		height: rem(15);
+		border: 2px solid var(--border-strong);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
 	}
 
 	table {
@@ -642,7 +679,9 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			background: var(--hover);

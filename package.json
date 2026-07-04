@@ -10,7 +10,10 @@
 		"pnpm": "!",
 		"yarn": "!"
 	},
-	"workspaces": ["apps/*", "packages/*"],
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
 	"scripts": {
 		"dev": "turbo dev",
 		"build": "turbo build",
@@ -31,7 +34,9 @@
 		"svelte": "5.56.4",
 		"turbo": "2.10.0"
 	},
-	"trustedDependencies": ["esbuild"],
+	"trustedDependencies": [
+		"esbuild"
+	],
 	"overrides": {
 		"esrap": "2.2.11",
 		"prettier": "3.9.4",

@@ -41,3 +41,12 @@ release: ## Cut a release: make release VERSION=0.2.0  (bumps, commits, tags, pu
 
 watch: ## Watch the latest GitHub Actions run
 	gh run watch $$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
+
+mac: ## Build the native macOS app (apps/macos → dist/BioLab.app)
+	cd apps/macos && ./build.sh
+
+mac-dev: ## Fast debug build + launch of the native macOS app
+	cd apps/macos && ./build.sh --debug --run
+
+mac-run: ## Release build + launch of the native macOS app
+	cd apps/macos && ./build.sh --run

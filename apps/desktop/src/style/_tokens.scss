@@ -1,67 +1,81 @@
-// Design tokens — native macOS feel, light + dark.
-// The sidebar stays translucent (vibrancy) with a subtle tint; the content
-// panel is mostly opaque so tables stay crisp and readable.
+// Design tokens — Flint design system (flintsystem.design) adapted for a native
+// macOS feel. Geist typeface, an indigo accent, Radix-gray neutrals and Radix
+// semantic colors. The sidebar/content keep a touch of macOS vibrancy; surfaces
+// stay crisp so tables and text read cleanly. `[data-theme]` on <html> drives it.
 
 :root {
-	// Typography
+	// Typography — Flint uses Geist (bundled) with a system fallback.
 	--font-sans:
-		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
-		system-ui, sans-serif;
+		'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+		sans-serif;
 	--font-mono:
-		ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+		'Geist Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo,
+		Consolas, monospace;
 
-	// Radii
+	// Radii (Flint radius scale: xs 4 / sm 6 / md 8 / lg 12 / xl 16)
 	--radius-sm: 6px;
 	--radius: 8px;
 	--radius-lg: 12px;
+	--radius-xl: 16px;
 
 	// Layout
 	--sidebar-width: 220px;
 	--topbar-height: 52px;
 
-	// Accent (macOS system blue)
-	--accent: #0a84ff;
-	--accent-hover: #3395ff;
+	// Keep UA-rendered defaults (canvas text, native controls) in step with the theme.
+	color-scheme: light;
+
+	// Accent — Radix Indigo 9 (Flint brand). Identical hex in both themes.
+	--accent: #3e63dd;
+	--accent-hover: #3358d4;
 	--accent-text: #ffffff;
+	// Legible accent for icons/text sitting on a subtle accent tint.
+	--accent-fg: #3358d4; // indigo 10 (light)
 
-	// Semantic
-	--danger: #ff3b30;
-	--danger-hover: #ff5146;
-	--success: #34c759;
-	--warning: #ff9f0a;
+	// Semantic — Radix red / green / orange
+	--danger: #e5484d;
+	--danger-hover: #dc3d43;
+	--success: #30a46c;
+	--warning: #f76b15;
 
-	// --- Light theme (default) ---
-	--sidebar-bg: rgba(255, 255, 255, 0.18);
-	--content-bg: rgba(250, 250, 252, 0.7);
-	--surface: rgba(255, 255, 255, 0.85);
-	--surface-2: rgba(0, 0, 0, 0.04);
-	--text: #1d1d1f;
-	--text-secondary: rgba(60, 60, 67, 0.65);
-	--text-tertiary: rgba(60, 60, 67, 0.42);
-	--border: rgba(0, 0, 0, 0.1);
-	--border-strong: rgba(0, 0, 0, 0.16);
-	--hover: rgba(0, 0, 0, 0.05);
-	--active: rgba(0, 0, 0, 0.09);
-	--shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	// --- Light theme (default) — Radix Gray (light) ---
+	--sidebar-bg: rgba(249, 249, 249, 0.62);
+	--content-bg: rgba(252, 252, 252, 0.74);
+	--surface: rgba(255, 255, 255, 0.9);
+	--surface-2: rgba(0, 0, 0, 0.035);
+	--text: #202020; // gray 12
+	--text-secondary: #646464; // gray 11
+	--text-tertiary: #8d8d8d; // gray 9
+	--border: #e4e4e4; // gray 4/5
+	--border-strong: #cecece; // gray 7
+	--hover: rgba(0, 0, 0, 0.045);
+	--active: rgba(0, 0, 0, 0.075);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
 [data-theme='dark'] {
-	// Sidebar: dark tint with a touch of translucency so vibrancy still adds life;
-	// content panel is a slightly deeper near-opaque charcoal.
-	--sidebar-bg: rgba(11, 11, 13, 0.9);
-	--content-bg: rgba(18, 18, 21, 0.92);
-	--surface: rgba(255, 255, 255, 0.06);
-	--surface-2: rgba(255, 255, 255, 0.038);
-	--text: #f5f5f7;
-	--text-secondary: rgba(235, 235, 245, 0.66);
-	--text-tertiary: rgba(235, 235, 245, 0.42);
-	--border: rgba(255, 255, 255, 0.08);
-	--border-strong: rgba(255, 255, 255, 0.18);
-	--hover: rgba(255, 255, 255, 0.055);
-	--active: rgba(255, 255, 255, 0.09);
-	--shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-	--danger: #ff453a;
-	--danger-hover: #ff6961;
-	--success: #30d158;
-	--warning: #ffd60a;
+	color-scheme: dark;
+
+	// Higher-contrast dark: a near-black ground so lifted surfaces and crisp
+	// borders separate clearly. Keeps a touch of vibrancy on the chrome.
+	--sidebar-bg: rgba(9, 9, 10, 0.9);
+	--content-bg: rgba(13, 13, 14, 0.94);
+	--surface: rgba(255, 255, 255, 0.075);
+	--surface-2: rgba(255, 255, 255, 0.05);
+	--text: #f5f5f5; // gray 12+
+	--text-secondary: #bcbcbc; // gray 11
+	--text-tertiary: #949494; // gray 10 — AA-legible on the darker ground
+	--border: #383838; // gray 6 — crisper edges
+	--border-strong: #575757; // gray 8
+	--hover: rgba(255, 255, 255, 0.07);
+	--active: rgba(255, 255, 255, 0.11);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.45);
+
+	--accent: #3e63dd;
+	--accent-hover: #5472e4;
+	--accent-fg: #9eb1ff; // indigo 11 (dark) — bright enough on a dark tint
+	--danger: #ec5d5e;
+	--danger-hover: #ff9592;
+	--success: #33b074;
+	--warning: #ff801f;
 }

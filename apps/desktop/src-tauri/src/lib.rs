@@ -1,7 +1,12 @@
 mod commands;
 mod tray;
 
+use commands::agents::{
+    context_read, context_write, mcp_remove, mcp_set_enabled, mcp_sync, mcp_upsert, scan_agents,
+    skill_link, skill_read, skill_share, symlink_create, symlink_remove, symlink_repair,
+};
 use commands::ports::{kill_process, list_ports, process_details};
+use commands::usage::{claude_usage_limits, scan_usage};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,12 +40,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window hides it to the menu bar instead of quitting.
+            // Closing the main window hides it to the menu bar instead of quitting.
             // The app keeps running in the tray; Quit (⌘Q) exits for real.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
-                // Freshen the menu-bar menu now that tray-only usage begins.
                 use tauri::Manager;
                 tray::refresh(window.app_handle());
             }
@@ -48,7 +52,22 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_ports,
             kill_process,
-            process_details
+            process_details,
+            scan_agents,
+            mcp_upsert,
+            mcp_remove,
+            mcp_sync,
+            mcp_set_enabled,
+            skill_read,
+            skill_share,
+            skill_link,
+            symlink_create,
+            symlink_remove,
+            symlink_repair,
+            context_read,
+            context_write,
+            scan_usage,
+            claude_usage_limits
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
