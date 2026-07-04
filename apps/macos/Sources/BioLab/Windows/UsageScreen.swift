@@ -238,22 +238,6 @@ private struct ProviderCard: View {
                     }
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 5) {
-                    Label(
-                        active
-                            ? Fmt.reset(session.resetsAt)
-                            : "no active window",
-                        systemImage: "clock"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    if active, let resets = session.resetsAt {
-                        let elapsed =
-                            1 - resets.timeIntervalSinceNow / Const.sessionWindow
-                        ProgressTrack(fraction: elapsed, height: 5)
-                            .frame(width: 120)
-                    }
-                }
             }
             .padding(Theme.Space.m)
             .background(

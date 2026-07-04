@@ -21,6 +21,8 @@ struct AgentsScreen: View {
 
     @State private var section: Section = .overview
     @State private var actionError: String?
+    @State private var mcpSelection: McpSelection?
+    @State private var mcpEditor: McpEditorContext?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +36,9 @@ struct AgentsScreen: View {
             } else {
                 switch section {
                 case .overview: OverviewSection(jump: { section = $0 })
-                case .mcp: McpSection(actionError: $actionError)
+                case .mcp:
+                    McpSection(
+                        actionError: $actionError, selection: $mcpSelection, editor: $mcpEditor)
                 case .skills: SkillsSection(actionError: $actionError)
                 case .symlinks: SymlinksSection(actionError: $actionError)
                 case .context: ContextSection(actionError: $actionError)
@@ -42,7 +46,14 @@ struct AgentsScreen: View {
             }
         }
         .navigationTitle("Agents")
+        .sheet(item: $mcpEditor) { context in
+            McpEditorSheet(context: context, actionError: $actionError) {
+                mcpEditor = nil
+            }
+        }
         .task { await state.refreshAgents() }
+        // Don't carry a stale MCP selection back when switching tabs.
+        .onChange(of: section) { _, _ in mcpSelection = nil }
         .alert(
             "Action failed",
             isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })
@@ -321,27 +332,24 @@ private struct GlanceTile: View {
 
 // MARK: - MCP matrix
 
+/// Which MCP cell (server × agent) the inspector is showing. Lives on
+/// AgentsScreen so the inspector can attach to the detail root.
+struct McpSelection: Equatable {
+    let name: String
+    let tool: ToolID
+}
+
 private struct McpSection: View {
     @Environment(AppState.self) private var state
     @Binding var actionError: String?
+    @Binding var selection: McpSelection?
+    @Binding var editor: McpEditorContext?
 
     @State private var query = ""
-    @State private var selection: McpSelection?
-    @State private var editor: McpEditorContext?
-    @State private var confirmRemove = false
-
-    struct McpSelection: Equatable {
-        let name: String
-        let tool: ToolID
-    }
 
     private var names: [String] {
         let q = query.lowercased()
         return state.mcpNames.filter { q.isEmpty || $0.lowercased().contains(q) }
-    }
-
-    private var inspectorPresented: Binding<Bool> {
-        Binding(get: { selection != nil }, set: { if !$0 { selection = nil } })
     }
 
     var body: some View {
@@ -357,15 +365,10 @@ private struct McpSection: View {
                 )
             } else {
                 matrix
-            }
-        }
-        .inspector(isPresented: inspectorPresented) {
-            inspectorContent
-                .inspectorColumnWidth(min: 260, ideal: 290, max: 340)
-        }
-        .sheet(item: $editor) { context in
-            McpEditorSheet(context: context, actionError: $actionError) {
-                editor = nil
+                    .floatingPanel(isPresented: selection != nil) {
+                        McpInspector(
+                            selection: $selection, editor: $editor, actionError: $actionError)
+                    }
             }
         }
     }
@@ -442,7 +445,9 @@ private struct McpSection: View {
         let isSelected = selection == McpSelection(name: name, tool: tool)
         return Button {
             if cell.configured {
-                selection = McpSelection(name: name, tool: tool)
+                withAnimation(.easeOut(duration: 0.2)) {
+                    selection = McpSelection(name: name, tool: tool)
+                }
             } else {
                 editor = McpEditorContext(initial: state.mcpAnyDefinition(name), fixedTool: tool)
             }
@@ -485,17 +490,28 @@ private struct McpSection: View {
                 : "Add \(name) to \(tool.displayName)")
     }
 
-    @ViewBuilder
-    private var inspectorContent: some View {
+}
+
+/// Detail pane for one MCP cell, presented from AgentsScreen's trailing
+/// inspector.
+private struct McpInspector: View {
+    @Environment(AppState.self) private var state
+    @Binding var selection: McpSelection?
+    @Binding var editor: McpEditorContext?
+    @Binding var actionError: String?
+
+    @State private var confirmRemove = false
+
+    var body: some View {
         if let sel = selection {
-            inspector(sel)
+            content(sel)
         } else {
             EmptyStateView(icon: "powerplug", title: "No server selected")
         }
     }
 
     @ViewBuilder
-    private func inspector(_ sel: McpSelection) -> some View {
+    private func content(_ sel: McpSelection) -> some View {
         let cell = state.mcpCell(name: sel.name, tool: sel.tool)
         if let server = cell.server {
             ScrollView {
@@ -509,7 +525,7 @@ private struct McpSection: View {
                         }
                         Spacer()
                         Button {
-                            selection = nil
+                            withAnimation(.easeOut(duration: 0.2)) { selection = nil }
                         } label: {
                             Image(systemName: "xmark")
                         }
@@ -596,7 +612,7 @@ private struct McpSection: View {
                         actionError = await state.mutateAgents {
                             try AgentsService.mcpRemove(tool: sel.tool.rawValue, name: sel.name)
                         }
-                        selection = nil
+                        withAnimation(.easeOut(duration: 0.2)) { selection = nil }
                     }
                 }
             }

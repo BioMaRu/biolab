@@ -36,8 +36,19 @@ enum PortsService {
         )
         let commands = fullCommands()
 
-        var ports: [PortInfo] = []
-        var seen = Set<String>()
+        // One listener can bind dozens of sockets (IPv4, IPv6, one per
+        // link-local interface). Group by process × port so the UI shows one
+        // row per listener with its addresses collapsed.
+        struct Listener {
+            let pid: Int32
+            let processName: String
+            let user: String
+            let proto: String
+            let port: Int
+            var addresses: [String]
+        }
+        var order: [String] = []
+        var listeners: [String: Listener] = [:]
         var pid: Int32 = 0
         var processName = ""
         var user = ""
@@ -58,23 +69,47 @@ enum PortsService {
             case "P": proto = value
             case "n":
                 guard let (address, port) = parseName(value) else { continue }
-                let key = "\(pid):\(port):\(address)"
-                guard seen.insert(key).inserted else { continue }
-                ports.append(
-                    PortInfo(
-                        pid: pid,
-                        processName: processName,
-                        user: user,
-                        protocolName: proto.isEmpty ? "TCP" : proto,
-                        address: address,
-                        port: port,
-                        command: commands[pid] ?? processName
-                    ))
+                let key = "\(pid):\(port)"
+                if var listener = listeners[key] {
+                    if !listener.addresses.contains(address) {
+                        listener.addresses.append(address)
+                        listeners[key] = listener
+                    }
+                } else {
+                    listeners[key] = Listener(
+                        pid: pid, processName: processName, user: user,
+                        proto: proto, port: port, addresses: [address])
+                    order.append(key)
+                }
             default: break
             }
         }
 
+        let ports: [PortInfo] = order.compactMap { key in
+            guard let listener = listeners[key] else { return nil }
+            return PortInfo(
+                pid: listener.pid,
+                processName: listener.processName,
+                user: listener.user,
+                protocolName: listener.proto.isEmpty ? "TCP" : listener.proto,
+                address: primaryAddress(listener.addresses),
+                addresses: listener.addresses,
+                port: listener.port,
+                command: commands[listener.pid] ?? listener.processName
+            )
+        }
+
         return ports.sorted { ($0.port, $0.pid) < ($1.port, $1.pid) }
+    }
+
+    /// Pick the most recognizable binding for display: wildcard, then
+    /// any-address forms, then IPv4, then whatever came first.
+    private static func primaryAddress(_ addresses: [String]) -> String {
+        addresses.first { $0 == "*" }
+            ?? addresses.first { $0 == "0.0.0.0" || $0 == "::" }
+            ?? addresses.first { $0.contains(".") }
+            ?? addresses.first
+            ?? "*"
     }
 
     static func kill(pid: Int32, force: Bool) throws {

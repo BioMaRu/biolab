@@ -15,7 +15,7 @@ let package = Package(
             name: "BioLab",
             dependencies: ["TOMLKit"],
             path: "Sources/BioLab",
-            resources: [.copy("Resources/tray.png")],
+            resources: [.copy("Resources/tray.png"), .copy("Resources/Brands")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]

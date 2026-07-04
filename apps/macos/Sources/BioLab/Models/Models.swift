@@ -119,11 +119,21 @@ struct PortInfo: Identifiable, Hashable {
     let processName: String
     let user: String
     let protocolName: String
+    /// Primary binding, preferring the wildcard/IPv4 form for display.
     let address: String
+    /// Every address this process listens on for this port — servers commonly
+    /// bind one socket per interface (IPv4, IPv6, each link-local), which is
+    /// still one listener to the user.
+    let addresses: [String]
     let port: Int
     let command: String
 
-    var id: String { "\(pid):\(port):\(address)" }
+    var id: String { "\(pid):\(port)" }
+
+    /// "*", or "127.0.0.1 +3" when bound on several interfaces.
+    var addressSummary: String {
+        addresses.count > 1 ? "\(address) +\(addresses.count - 1)" : address
+    }
 }
 
 // MARK: - Usage

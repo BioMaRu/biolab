@@ -30,7 +30,7 @@ struct PortsScreen: View {
                 String($0.port).contains(q) || String($0.pid).contains(q)
                     || $0.processName.lowercased().contains(q)
                     || $0.command.lowercased().contains(q)
-                    || $0.address.lowercased().contains(q)
+                    || $0.addresses.contains { $0.lowercased().contains(q) }
             }
         return matches.sorted(using: sortOrder)
     }
@@ -156,7 +156,8 @@ struct PortsScreen: View {
     private func execute(_ request: KillRequest) {
         Task {
             var errors: [String] = []
-            for port in request.ports {
+            var killed = Set<Int32>()
+            for port in request.ports where killed.insert(port.pid).inserted {
                 if let error = await state.killProcess(pid: port.pid, force: request.force) {
                     errors.append(error)
                 }
@@ -325,11 +326,23 @@ struct PortsScreen: View {
             .width(min: 50, ideal: 64, max: 90)
 
             TableColumn("Address", value: \.address) { port in
-                Text(port.address)
-                    .font(.callout)
-                    .monospaced()
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(port.address)
+                        .font(.callout)
+                        .monospaced()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    if port.addresses.count > 1 {
+                        Text("+\(port.addresses.count - 1)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
+                }
+                .help(
+                    port.addresses.count > 1
+                        ? "Bound on \(port.addresses.count) addresses:\n\(port.addresses.joined(separator: "\n"))"
+                        : port.address)
             }
             .width(min: 90, ideal: 140, max: 200)
         }
@@ -421,7 +434,23 @@ private struct PortInspector: View {
 
                     HStack(spacing: 6) {
                         Badge(text: "\(port.protocolName) \(port.port)", tint: Theme.accentFg)
-                        Badge(text: port.address)
+                        Badge(text: port.addressSummary)
+                    }
+
+                    if port.addresses.count > 1 {
+                        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                            SectionLabel(text: "\(port.addresses.count) addresses")
+                            Text(port.addresses.joined(separator: "\n"))
+                                .font(.caption)
+                                .monospaced()
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(Theme.Space.s)
+                                .background(
+                                    .quaternary.opacity(0.4),
+                                    in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: Theme.Space.xs) {

@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// Reports the natural height of the panel's scrollable content so the panel
+/// can size to it.
+private struct PanelContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// The menu-bar popover: BioLab's quick surface. Two tabs — AI Usage (default)
 /// and Ports — with a footer for the full window, refresh and quit.
 struct MenuBarPanel: View {
@@ -8,6 +17,7 @@ struct MenuBarPanel: View {
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("panel.tab") private var tabRaw = PanelTab.usage.rawValue
+    @State private var contentHeight: CGFloat = 0
 
     enum PanelTab: String, CaseIterable, Identifiable {
         case usage, ports
@@ -31,6 +41,20 @@ struct MenuBarPanel: View {
 
     private var tab: PanelTab { PanelTab(rawValue: tabRaw) ?? .usage }
 
+    /// The tallest the scroll area may grow before scrolling — the space from
+    /// just under the menu bar to near the screen bottom, minus the panel's
+    /// own tab/footer chrome.
+    private var maxScrollHeight: CGFloat {
+        let visible = NSScreen.main?.visibleFrame.height ?? 800
+        return max(320, visible - 140)
+    }
+
+    /// Hug the measured content; fall back to a sensible height until the first
+    /// measurement lands.
+    private var resolvedScrollHeight: CGFloat {
+        contentHeight > 0 ? min(contentHeight, maxScrollHeight) : 220
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             SegmentedTabs(
@@ -52,8 +76,17 @@ struct MenuBarPanel: View {
                 }
                 .id(tab)
                 .transition(.opacity)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: PanelContentHeightKey.self, value: geo.size.height)
+                    }
+                )
             }
-            .frame(maxHeight: 480)
+            // Hug the content, growing until it nears the screen bottom — then
+            // the ScrollView takes over. No fixed cap.
+            .frame(height: resolvedScrollHeight)
+            .onPreferenceChange(PanelContentHeightKey.self) { contentHeight = $0 }
 
             Divider()
             footer
@@ -291,17 +324,17 @@ private struct PortsTab: View {
                 )
                 .frame(minHeight: 140)
             } else {
-                ForEach(state.ports.prefix(16)) { port in
+                ForEach(state.ports.prefix(24)) { port in
                     PortRow(port: port)
                 }
-                if state.ports.count > 16 {
+                if state.ports.count > 24 {
                     Button {
                         UserDefaults.standard.set(
                             MainSection.ports.rawValue, forKey: "window.section")
                         openWindow(id: "main")
                         dismiss()
                     } label: {
-                        Text("+\(state.ports.count - 16) more — open BioLab")
+                        Text("+\(state.ports.count - 24) more — open BioLab")
                             .font(.caption)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)

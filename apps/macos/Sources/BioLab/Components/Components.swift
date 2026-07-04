@@ -2,25 +2,31 @@ import SwiftUI
 
 // MARK: - Agent glyph
 
-/// Small glyph tile for each agent. Monochrome by design — the Flint accent
-/// stays reserved for interaction and selection, so no agent gets a louder
-/// voice than the others.
+/// Each agent's brand mark. Prefers a real logo dropped into
+/// `Resources/Brands` (see `BrandAsset`); otherwise falls back to the
+/// hand-drawn `BrandMark` — Claude in its terracotta, Codex and OpenCode
+/// monochrome, matching their actual identities. Pass `monochrome: true` for
+/// tinted/menu contexts (only affects the drawn fallback).
 struct AgentGlyph: View {
     let tool: ToolID
     var size: CGFloat = 15
-
-    private var symbol: String {
-        switch tool {
-        case .claude: "sparkle"
-        case .codex: "hexagon"
-        case .opencode: "chevron.left.forwardslash.chevron.right"
-        }
-    }
+    var monochrome = false
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: size, weight: .medium))
-            .foregroundStyle(.primary)
+        if let logo = BrandAsset.image(for: tool) {
+            // Claude's mark carries its own terracotta; Codex and OpenCode are
+            // single-color, so template-render them to stay legible on any
+            // background and follow the ambient tint.
+            let templated = monochrome || tool != .claude
+            Image(nsImage: logo)
+                .renderingMode(templated ? .template : .original)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            BrandMark(tool: tool, size: size, monochrome: monochrome)
+        }
     }
 }
 
@@ -262,6 +268,40 @@ extension View {
             RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .strokeBorder(.separator, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Floating panel
+
+extension View {
+    /// A trailing detail panel that floats *over* its content and slides in/out,
+    /// leaving the layout underneath untouched — unlike `.inspector`, which
+    /// splits the view and resizes everything beside it. Use for transient,
+    /// click-to-open detail; keep `.inspector` for persistent workspace panes.
+    ///
+    /// Wrap the presenting state change in `withAnimation` so the slide plays.
+    func floatingPanel<Content: View>(
+        isPresented: Bool,
+        width: CGFloat = 300,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        overlay(alignment: .trailing) {
+            if isPresented {
+                content()
+                    .frame(width: width)
+                    .frame(maxHeight: .infinity)
+                    .background(
+                        .regularMaterial,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.card)
+                            .strokeBorder(.separator, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.18), radius: 14, x: -4, y: 2)
+                    .padding(.trailing, Theme.Space.m)
+                    .padding(.vertical, Theme.Space.m)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
     }
 }
 
