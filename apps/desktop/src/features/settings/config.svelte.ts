@@ -73,7 +73,9 @@ class ConfigStore {
 	addFavorite(port: number) {
 		if (port < 1 || port > 65535) return
 		if (!this.#favoritePorts.includes(port)) {
-			this.#favoritePorts = [...this.#favoritePorts, port].sort((a, b) => a - b)
+			this.#favoritePorts = [...this.#favoritePorts, port].sort(
+				(a, b) => a - b,
+			)
 			this.#persist()
 		}
 	}

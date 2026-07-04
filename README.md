@@ -52,11 +52,11 @@ BioLab auto-updates from GitHub Releases via `tauri-plugin-updater`. To ship an 
 
 1. Bump the version in **`apps/desktop/src-tauri/tauri.conf.json`** (and `apps/desktop/package.json`).
 2. Commit, then tag and push:
-   ```bash
-   git commit -am "release: v0.2.0"
-   git tag v0.2.0
-   git push origin main --tags
-   ```
+    ```bash
+    git commit -am "release: v0.2.0"
+    git tag v0.2.0
+    git push origin main --tags
+    ```
 3. The **`release` GitHub Action** builds a universal macOS app, signs the update, and publishes a GitHub Release with a `latest.json` manifest.
 4. Every installed copy of BioLab checks that manifest on launch (and via **Settings → Check for Updates**) and updates itself.
 
@@ -66,4 +66,3 @@ BioLab auto-updates from GitHub Releases via `tauri-plugin-updater`. To ship an 
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — its password
 
 The matching **public key** lives in `tauri.conf.json` (`plugins.updater.pubkey`). The repo must be **public** so the updater can fetch release assets without authentication.
-

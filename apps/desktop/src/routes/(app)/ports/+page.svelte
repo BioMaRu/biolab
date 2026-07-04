@@ -59,12 +59,15 @@
 
 	async function killPort(p: PortInfo, force: boolean) {
 		const label = `${p.processName} (PID ${p.pid}) on port ${p.port}`
-		const confirmed = await ask(`${force ? 'Force kill' : 'Kill'} ${label}?`, {
-			title: force ? 'Force Kill Process' : 'Kill Process',
-			kind: 'warning',
-			okLabel: force ? 'Force Kill' : 'Kill',
-			cancelLabel: 'Cancel',
-		})
+		const confirmed = await ask(
+			`${force ? 'Force kill' : 'Kill'} ${label}?`,
+			{
+				title: force ? 'Force Kill Process' : 'Kill Process',
+				kind: 'warning',
+				okLabel: force ? 'Force Kill' : 'Kill',
+				cancelLabel: 'Cancel',
+			},
+		)
 		if (!confirmed) return
 
 		busyPid = p.pid
@@ -73,7 +76,10 @@
 			await portsStore.refresh()
 			await notify('Port freed', `Killed ${label}`)
 		} catch (e) {
-			await notify('Kill failed', e instanceof Error ? e.message : String(e))
+			await notify(
+				'Kill failed',
+				e instanceof Error ? e.message : String(e),
+			)
 		} finally {
 			busyPid = null
 		}
@@ -84,8 +90,7 @@
 		if (matches.length === 0) return
 
 		const names = [...new Set(matches.map((m) => m.processName))].join(', ')
-		const what =
-			matches.length > 1 ? `${matches.length} processes` : names
+		const what = matches.length > 1 ? `${matches.length} processes` : names
 		const confirmed = await ask(`Kill ${what} on port ${port}?`, {
 			title: 'Kill Process',
 			kind: 'warning',
@@ -101,7 +106,10 @@
 			await portsStore.refresh()
 			await notify('Port freed', `Freed port ${port} (${names})`)
 		} catch (e) {
-			await notify('Kill failed', e instanceof Error ? e.message : String(e))
+			await notify(
+				'Kill failed',
+				e instanceof Error ? e.message : String(e),
+			)
 		}
 	}
 
@@ -239,12 +247,17 @@
 					{#each portsStore.filtered as p (rowKey(p))}
 						<tr class:busy={busyPid === p.pid}>
 							<td class="col-port mono">{p.port}</td>
-							<td class="proc" title={p.command}>{p.processName}</td>
+							<td class="proc" title={p.command}>
+								{p.processName}
+							</td>
 							<td class="col-pid mono">{p.pid}</td>
 							<td class="col-proto">{p.protocol}</td>
 							<td class="mono addr">{p.address}</td>
 							<td class="col-actions">
-								<div class="row-actions" class:pinned={expandedKey === rowKey(p)}>
+								<div
+									class="row-actions"
+									class:pinned={expandedKey === rowKey(p)}
+								>
 									<button
 										class="act"
 										class:on={expandedKey === rowKey(p)}
@@ -281,27 +294,51 @@
 									<div class="detail">
 										<div class="field">
 											<span class="label">Command</span>
-											<code class="value">{p.command}</code>
+											<code class="value">
+												{p.command}
+											</code>
 										</div>
 										<div class="field-row">
 											<div class="field">
 												<span class="label">User</span>
-												<span class="value">{p.user || '—'}</span>
+												<span class="value">
+													{p.user || '—'}
+												</span>
 											</div>
 											<div class="copy-actions">
 												<button
 													class="copy-btn"
-													onclick={() => copyField(rowKey(p) + ':pid', String(p.pid))}
+													onclick={() =>
+														copyField(
+															rowKey(p) + ':pid',
+															String(p.pid),
+														)}
 												>
-													<Icon name="copy" size={13} />
-													{copied === rowKey(p) + ':pid' ? 'Copied' : 'Copy PID'}
+													<Icon
+														name="copy"
+														size={13}
+													/>
+													{copied ===
+													rowKey(p) + ':pid'
+														? 'Copied'
+														: 'Copy PID'}
 												</button>
 												<button
 													class="copy-btn"
-													onclick={() => copyField(rowKey(p) + ':cmd', p.command)}
+													onclick={() =>
+														copyField(
+															rowKey(p) + ':cmd',
+															p.command,
+														)}
 												>
-													<Icon name="copy" size={13} />
-													{copied === rowKey(p) + ':cmd' ? 'Copied' : 'Copy command'}
+													<Icon
+														name="copy"
+														size={13}
+													/>
+													{copied ===
+													rowKey(p) + ':cmd'
+														? 'Copied'
+														: 'Copy command'}
 												</button>
 											</div>
 										</div>
@@ -384,7 +421,9 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			color: var(--text);
@@ -642,7 +681,9 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			background: var(--hover);

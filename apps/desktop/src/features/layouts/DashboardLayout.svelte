@@ -23,7 +23,11 @@
 		</div>
 		<nav>
 			{#each navItems as item (item.href)}
-				<a class="nav-item" class:active={isActive(item.href)} href={item.href}>
+				<a
+					class="nav-item"
+					class:active={isActive(item.href)}
+					href={item.href}
+				>
 					<Icon name={item.icon} />
 					<span>{item.label}</span>
 				</a>
@@ -41,7 +45,9 @@
 					aria-label="Toggle theme"
 					onclick={() => themeStore.toggle()}
 				>
-					<Icon name={themeStore.resolved === 'dark' ? 'sun' : 'moon'} />
+					<Icon
+						name={themeStore.resolved === 'dark' ? 'sun' : 'moon'}
+					/>
 				</button>
 			</div>
 		</header>
@@ -113,7 +119,9 @@
 		font-weight: 500;
 		text-decoration: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			color: var(--text);
@@ -165,7 +173,9 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-sm);
-		transition: background-color 0.12s ease, color 0.12s ease;
+		transition:
+			background-color 0.12s ease,
+			color 0.12s ease;
 
 		&:hover {
 			color: var(--text);

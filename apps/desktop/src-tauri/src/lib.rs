@@ -1,6 +1,10 @@
 mod commands;
 mod tray;
 
+use commands::agents::{
+    context_read, context_write, mcp_remove, mcp_set_enabled, mcp_sync, mcp_upsert, scan_agents,
+    skill_link, skill_read, skill_share, symlink_create, symlink_remove, symlink_repair,
+};
 use commands::ports::{kill_process, list_ports, process_details};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -48,7 +52,20 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_ports,
             kill_process,
-            process_details
+            process_details,
+            scan_agents,
+            mcp_upsert,
+            mcp_remove,
+            mcp_sync,
+            mcp_set_enabled,
+            skill_read,
+            skill_share,
+            skill_link,
+            symlink_create,
+            symlink_remove,
+            symlink_repair,
+            context_read,
+            context_write
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
