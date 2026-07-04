@@ -56,19 +56,20 @@
 [data-theme='dark'] {
 	color-scheme: dark;
 
-	// Sidebar/content keep a hint of vibrancy over the Radix-gray-dark ground.
-	--sidebar-bg: rgba(17, 17, 17, 0.88);
-	--content-bg: rgba(20, 20, 20, 0.92);
-	--surface: rgba(255, 255, 255, 0.055);
-	--surface-2: rgba(255, 255, 255, 0.035);
-	--text: #eeeeee; // gray 12
-	--text-secondary: #b4b4b4; // gray 11
-	--text-tertiary: #909090; // brightened past gray 10 for AA-legible hints/paths
-	--border: #2e2e2e; // gray 5/6
-	--border-strong: #4d4d4d; // gray 8
-	--hover: rgba(255, 255, 255, 0.05);
-	--active: rgba(255, 255, 255, 0.085);
-	--shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.35);
+	// Higher-contrast dark: a near-black ground so lifted surfaces and crisp
+	// borders separate clearly. Keeps a touch of vibrancy on the chrome.
+	--sidebar-bg: rgba(9, 9, 10, 0.9);
+	--content-bg: rgba(13, 13, 14, 0.94);
+	--surface: rgba(255, 255, 255, 0.075);
+	--surface-2: rgba(255, 255, 255, 0.05);
+	--text: #f5f5f5; // gray 12+
+	--text-secondary: #bcbcbc; // gray 11
+	--text-tertiary: #949494; // gray 10 — AA-legible on the darker ground
+	--border: #383838; // gray 6 — crisper edges
+	--border-strong: #575757; // gray 8
+	--hover: rgba(255, 255, 255, 0.07);
+	--active: rgba(255, 255, 255, 0.11);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.45);
 
 	--accent: #3e63dd;
 	--accent-hover: #5472e4;
