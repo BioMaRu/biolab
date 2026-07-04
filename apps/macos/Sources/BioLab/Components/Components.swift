@@ -340,6 +340,47 @@ struct EmptyStateView: View {
     }
 }
 
+// MARK: - Update banner
+
+/// Dismissible "a newer version is available" banner linking to the release.
+struct UpdateBanner: View {
+    let version: String
+    let onView: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Theme.accent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Update available").font(.callout.weight(.semibold))
+                Text("Version \(version) is ready to download.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("View", action: onView)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tertiary)
+            .help("Dismiss until the next version")
+            .accessibilityLabel("Dismiss update notice")
+        }
+        .padding(10)
+        .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.block))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.block)
+                .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Update available, version \(version)")
+    }
+}
+
 // MARK: - Inline error banner
 
 struct ErrorBanner: View {

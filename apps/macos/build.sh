@@ -15,7 +15,7 @@ for arg in "$@"; do
   esac
 done
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 APP="dist/BioLab.app"
 BIN=".build/$CONFIG/BioLab"
 BUNDLE=".build/$CONFIG/BioLab_BioLab.bundle"

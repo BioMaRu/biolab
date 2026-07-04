@@ -27,6 +27,13 @@ final class AppState {
     var agentsError: String?
     var agentsLoading = false
 
+    var latestRelease: UpdateService.Release?
+    var updateChecking = false
+    var updateCheckedAt: Date?
+    var updateError: String?
+    private var dismissedUpdateVersion: String? =
+        UserDefaults.standard.string(forKey: "updates.dismissedVersion")
+
     // MARK: Settings (persisted)
 
     var favoritePorts: [Int] {
@@ -59,6 +66,55 @@ final class AppState {
                 await refreshLimits()
             }
         }
+        // Update checks: once on launch, then every 12 hours.
+        Task { await checkForUpdates() }
+        Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(12 * 3600))
+                await checkForUpdates()
+            }
+        }
+    }
+
+    // MARK: Updates
+
+    var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
+    /// A newer release exists than the running build (ignored for unpackaged
+    /// "dev" builds).
+    var updateAvailable: Bool {
+        guard let release = latestRelease, currentVersion != "dev" else { return false }
+        return UpdateService.isNewer(release.version, than: currentVersion)
+    }
+
+    /// Whether to surface the banner — available and not dismissed for this version.
+    var showUpdateBanner: Bool {
+        updateAvailable && latestRelease?.version != dismissedUpdateVersion
+    }
+
+    func checkForUpdates(manual: Bool = false) async {
+        let auto = UserDefaults.standard.object(forKey: "updates.autoCheck") as? Bool ?? true
+        guard manual || auto else { return }
+        guard currentVersion != "dev" else { return }  // unpackaged build — nothing to update
+        updateChecking = true
+        defer {
+            updateChecking = false
+            updateCheckedAt = Date()
+        }
+        do {
+            latestRelease = try await UpdateService.latest()
+            updateError = nil
+        } catch {
+            updateError = error.localizedDescription
+        }
+    }
+
+    /// Hide the banner for the current latest version until a newer one ships.
+    func dismissUpdate() {
+        dismissedUpdateVersion = latestRelease?.version
+        UserDefaults.standard.set(dismissedUpdateVersion, forKey: "updates.dismissedVersion")
     }
 
     // MARK: Refreshers

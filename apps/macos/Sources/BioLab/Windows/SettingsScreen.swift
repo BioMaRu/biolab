@@ -2,9 +2,11 @@ import ServiceManagement
 import SwiftUI
 
 struct SettingsScreen: View {
+    @Environment(AppState.self) private var state
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
     @AppStorage("menubar.showUsage") private var showUsageInMenuBar = true
+    @AppStorage("updates.autoCheck") private var autoCheckUpdates = true
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -37,6 +39,41 @@ struct SettingsScreen: View {
                 Text("Usage rescans every 2 minutes; plan limits refresh every 5 minutes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Updates") {
+                Toggle("Check for updates automatically", isOn: $autoCheckUpdates)
+                LabeledContent("Status") {
+                    HStack(spacing: 8) {
+                        if state.updateChecking {
+                            ProgressView().controlSize(.small)
+                            Text("Checking…").foregroundStyle(.secondary)
+                        } else if state.updateAvailable, let release = state.latestRelease {
+                            Text("v\(release.version) available")
+                                .foregroundStyle(Theme.accentFg)
+                            Button("View Release") {
+                                NSWorkspace.shared.open(release.url)
+                            }
+                            .controlSize(.small)
+                        } else if let error = state.updateError {
+                            Text(error).foregroundStyle(Theme.danger).lineLimit(1)
+                        } else if state.updateCheckedAt != nil {
+                            Text("Up to date").foregroundStyle(.secondary)
+                        } else {
+                            Text("—").foregroundStyle(.tertiary)
+                        }
+                        Button("Check Now") {
+                            Task { await state.checkForUpdates(manual: true) }
+                        }
+                        .controlSize(.small)
+                        .disabled(state.updateChecking)
+                    }
+                }
+                if let at = state.updateCheckedAt {
+                    Text("Last checked \(Fmt.ago(at)).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Data") {

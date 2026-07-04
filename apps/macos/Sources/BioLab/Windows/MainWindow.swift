@@ -52,6 +52,17 @@ struct MainWindow: View {
             }
         }
         .frame(minWidth: 860, minHeight: 560)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if state.showUpdateBanner, let release = state.latestRelease {
+                UpdateBanner(
+                    version: release.version,
+                    onView: { NSWorkspace.shared.open(release.url) },
+                    onDismiss: { state.dismissUpdate() }
+                )
+                .padding(Theme.Space.m)
+                .background(.bar)
+            }
+        }
         .task { state.bootstrap() }
     }
 }
