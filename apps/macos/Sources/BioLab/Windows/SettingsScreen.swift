@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsScreen: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
+    @AppStorage("menubar.showUsage") private var showUsageInMenuBar = true
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -29,7 +30,13 @@ struct SettingsScreen: View {
                 if let loginError {
                     Text(loginError).font(.caption).foregroundStyle(Theme.danger)
                 }
-                LabeledContent("Menu bar refresh", value: "usage every 2 min · limits every 5 min")
+                Toggle("Show session usage in menu bar", isOn: $showUsageInMenuBar)
+                Text("Displays your current Claude session limit (e.g. 62%) next to the menu bar icon, tinted as it nears the cap.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Usage rescans every 2 minutes; plan limits refresh every 5 minutes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Data") {

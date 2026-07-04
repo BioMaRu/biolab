@@ -34,6 +34,28 @@ enum Theme {
         default: accent
         }
     }
+
+    /// Corner radii — exactly three, so surfaces at the same nesting depth
+    /// always agree.
+    enum Radius {
+        /// Chips, fields, small buttons, glyph tiles.
+        static let control: CGFloat = 6
+        /// Nested blocks inside cards: banners, limit blocks, code boxes.
+        static let block: CGFloat = 8
+        /// Cards and other top-level surfaces.
+        static let card: CGFloat = 10
+    }
+
+    /// Spacing on a 4-pt grid.
+    enum Space {
+        static let xs: CGFloat = 4
+        static let s: CGFloat = 8
+        static let m: CGFloat = 12
+        static let l: CGFloat = 16
+    }
+
+    /// One measure for scrollable content columns across every screen.
+    static let contentMaxWidth: CGFloat = 800
 }
 
 extension Color {

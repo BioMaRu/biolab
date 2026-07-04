@@ -17,7 +17,7 @@ enum MainSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .ports: "network"
-        case .agents: "person.2.gobackward"
+        case .agents: "cpu"
         case .usage: "waveform.path.ecg"
         case .settings: "gearshape"
         }

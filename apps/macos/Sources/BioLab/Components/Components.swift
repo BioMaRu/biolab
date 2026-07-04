@@ -2,7 +2,9 @@ import SwiftUI
 
 // MARK: - Agent glyph
 
-/// Small brand-evocative glyph tile for each agent (SF Symbols keep it native).
+/// Small glyph tile for each agent. Monochrome by design — the Flint accent
+/// stays reserved for interaction and selection, so no agent gets a louder
+/// voice than the others.
 struct AgentGlyph: View {
     let tool: ToolID
     var size: CGFloat = 15
@@ -15,18 +17,97 @@ struct AgentGlyph: View {
         }
     }
 
-    private var tint: Color {
-        switch tool {
-        case .claude: Color(red: 0xD9 / 255, green: 0x77 / 255, blue: 0x57 / 255)
-        case .codex: .primary
-        case .opencode: .primary
-        }
-    }
-
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: size, weight: .medium))
-            .foregroundStyle(tint)
+            .foregroundStyle(.primary)
+    }
+}
+
+// MARK: - Segmented tabs
+
+/// The one segmented control used on panel surfaces: tinted accent fill and
+/// border for the selected segment, quiet for the rest. Windows keep the
+/// native segmented `Picker`; this exists so the panel has exactly one style.
+struct SegmentedTabs<Item: Identifiable & Equatable, Label: View>: View {
+    let items: [Item]
+    @Binding var selection: Item
+    @ViewBuilder let label: (Item) -> Label
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            ForEach(items) { item in
+                let selected = item == selection
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { selection = item }
+                } label: {
+                    HStack(spacing: 5) { label(item) }
+                        .font(.callout.weight(.medium))
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            selected
+                                ? AnyShapeStyle(Theme.accent.opacity(0.16))
+                                : AnyShapeStyle(.quaternary.opacity(0.4)),
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.control)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.control)
+                                .strokeBorder(
+                                    selected ? Theme.accent.opacity(0.5) : .clear, lineWidth: 1)
+                        )
+                        .foregroundStyle(selected ? AnyShapeStyle(Theme.accentFg) : AnyShapeStyle(.secondary))
+                        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
+            }
+        }
+    }
+}
+
+// MARK: - Filter field
+
+/// The one search/filter field. Clears on Escape, shows a clear button while
+/// non-empty, and focuses on ⌘F.
+struct FilterField: View {
+    let prompt: String
+    @Binding var text: String
+    var maxWidth: CGFloat = 320
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .focused($focused)
+                .onExitCommand {
+                    if text.isEmpty { focused = false } else { text = "" }
+                }
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear filter")
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .frame(maxWidth: maxWidth)
+        .background(
+            // Invisible ⌘F target — the field itself can't carry a shortcut.
+            Button("") { focused = true }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        )
     }
 }
 
@@ -59,7 +140,7 @@ struct LimitBarRow: View {
             ProgressTrack(fraction: bar.percent / 100, tint: Theme.severity(bar.severity))
             Text(Fmt.reset(bar.resetsAt))
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
         .accessibilityElement(children: .combine)
@@ -83,14 +164,20 @@ struct ProgressTrack: View {
         }
         .frame(height: height)
         .animation(.easeOut(duration: 0.35), value: fraction)
+        .accessibilityElement(children: .ignore)
+        .accessibilityValue("\(Int(min(1, max(0, fraction)) * 100)) percent")
     }
 }
 
 // MARK: - Stat cell
 
+/// Fixed contract on every surface: `value` is the number, `label` names the
+/// window, `detail` carries the optional cost/annotation. Never pack two facts
+/// into one slot.
 struct StatCell: View {
     let value: String
     let label: String
+    var detail: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -99,15 +186,27 @@ struct StatCell: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let detail {
+                    Text("· \(detail)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7))
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.s)
+        .background(
+            .quaternary.opacity(0.45),
+            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -138,12 +237,42 @@ struct SectionLabel: View {
     }
 }
 
+/// Pinned column-header row for hand-built matrices (Skills, MCP).
+struct ColumnHeaderText: View {
+    let text: String
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.caption2.weight(.semibold))
+            .kerning(0.5)
+            .foregroundStyle(.secondary)
+    }
+}
+
+// MARK: - Card
+
+extension View {
+    /// The one card surface: secondary background, hairline stroke, card radius.
+    func card() -> some View {
+        background(
+            .background.secondary,
+            in: RoundedRectangle(cornerRadius: Theme.Radius.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
+                .strokeBorder(.separator, lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Empty state
 
 struct EmptyStateView: View {
     let icon: String
     let title: String
     var hint: String?
+    var actionLabel: String?
+    var action: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -158,6 +287,12 @@ struct EmptyStateView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
+            }
+            if let actionLabel, let action {
+                Button(actionLabel, action: action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.top, 6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -186,6 +321,6 @@ struct ErrorBanner: View {
             }
         }
         .padding(10)
-        .background(Theme.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .background(Theme.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.block))
     }
 }

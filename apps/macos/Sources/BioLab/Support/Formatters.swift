@@ -78,6 +78,11 @@ enum Fmt {
     static func projectName(_ path: String) -> String {
         path.split(separator: "/").last.map(String.init) ?? path
     }
+
+    /// Display label for a raw tool id ("claude" → "Claude", "shared" → "Shared").
+    static func tool(_ id: String) -> String {
+        ToolID(rawValue: id)?.shortName ?? id.capitalized
+    }
 }
 
 /// ISO-8601 parsing tolerant of fractional seconds (Claude log timestamps).

@@ -20,15 +20,18 @@ struct UsageScreen: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 } else {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Reading usage logs…").foregroundStyle(.secondary)
+                    // Skeletons hold the real card layout so nothing jumps
+                    // when data lands.
+                    ForEach(Self.placeholders) { provider in
+                        ProviderCard(provider: provider, placeholder: true)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                    .redacted(reason: .placeholder)
+                    .disabled(true)
+                    .accessibilityHidden(true)
                 }
             }
-            .padding(16)
-            .frame(maxWidth: 760, alignment: .leading)
+            .padding(Theme.Space.l)
+            .frame(maxWidth: Theme.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("AI Usage")
@@ -36,16 +39,26 @@ struct UsageScreen: View {
 
     private var header: some View {
         HStack {
-            let week = state.usage?.providers.reduce(0.0) { $0 + ($1.window("week")?.cost ?? 0) } ?? 0
-            Label {
-                Text("\(Fmt.usd(week)) ").font(.title3.weight(.semibold)).monospacedDigit()
-                    + Text("est. · 7 days").font(.callout).foregroundColor(.secondary)
-            } icon: {
-                Image(systemName: "dollarsign.circle").foregroundStyle(Theme.accentFg)
+            if let usage = state.usage {
+                let week = usage.providers.reduce(0.0) { $0 + ($1.window("week")?.cost ?? 0) }
+                Label {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text(Fmt.usd(week)).font(.title3.weight(.semibold)).monospacedDigit()
+                        Text("est. · 7 days").font(.callout).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "dollarsign.circle").foregroundStyle(Theme.accentFg)
+                }
+            } else {
+                Label {
+                    Text("Reading usage logs…").font(.callout).foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "dollarsign.circle").foregroundStyle(.tertiary)
+                }
             }
             Spacer()
             if let at = state.usageUpdatedAt {
-                Text("scanned \(Fmt.ago(at))").font(.callout).foregroundStyle(.tertiary)
+                Text("updated \(Fmt.ago(at))").font(.callout).foregroundStyle(.tertiary)
             }
             Button {
                 Task {
@@ -56,13 +69,37 @@ struct UsageScreen: View {
                 Image(systemName: "arrow.clockwise")
             }
             .help("Rescan usage")
+            .accessibilityLabel("Rescan usage")
         }
+    }
+
+    /// Sample data behind the redacted loading state — realistic shapes so the
+    /// skeleton matches what real cards will occupy.
+    private static let placeholders: [ProviderUsage] = ToolID.allCases.map { id in
+        var provider = ProviderUsage(id: id, tracked: true, note: nil)
+        provider.windows = [
+            WindowStat(
+                key: "session", label: "Current session",
+                input: 900_000, output: 120_000, cost: 4.2, messages: 96, resetsAt: nil),
+            WindowStat(
+                key: "today", label: "Today",
+                input: 2_400_000, output: 300_000, cost: 11.5, messages: 210, resetsAt: nil),
+            WindowStat(
+                key: "week", label: "Last 7 days",
+                input: 9_000_000, output: 1_100_000, cost: 48, messages: 1_400, resetsAt: nil),
+            WindowStat(
+                key: "all", label: "All time",
+                input: 52_000_000, output: 6_000_000, cost: 240, messages: 9_000, resetsAt: nil),
+        ]
+        provider.sessions = 42
+        return provider
     }
 }
 
 private struct ProviderCard: View {
     @Environment(AppState.self) private var state
     let provider: ProviderUsage
+    var placeholder = false
 
     private var hasCost: Bool { (provider.window("all")?.cost ?? 0) > 0 }
 
@@ -75,7 +112,7 @@ private struct ProviderCard: View {
                     Text(note).font(.callout).foregroundStyle(.secondary)
                 }
             } else {
-                if provider.id == .claude {
+                if provider.id == .claude, !placeholder {
                     limitsBlock
                     SectionLabel(text: "Local activity · estimated")
                 } else if let note = provider.note {
@@ -103,28 +140,31 @@ private struct ProviderCard: View {
                 footer
             }
         }
-        .padding(16)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 11))
-        .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(.separator, lineWidth: 1))
+        .padding(Theme.Space.l)
+        .card()
     }
 
     private var header: some View {
         HStack(spacing: 10) {
             AgentGlyph(tool: provider.id)
                 .frame(width: 28, height: 28)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                .background(
+                    .quaternary.opacity(0.5),
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.control))
             Text(provider.name).font(.headline)
             Text(Fmt.ago(provider.lastActive)).font(.caption).foregroundStyle(.tertiary)
             Spacer()
-            if provider.id == .claude, let plan = state.limits?.plan {
-                Badge(text: plan, tint: Theme.accentFg)
-            }
-            if hasCost {
-                Badge(text: Fmt.usd(provider.window("all")?.cost ?? 0), tint: Theme.accentFg)
-                    .help("All-time estimated spend")
-            }
-            if !provider.tracked {
-                Badge(text: "Not tracked")
+            if !placeholder {
+                if provider.id == .claude, let plan = state.limits?.plan {
+                    Badge(text: plan, tint: Theme.accentFg)
+                }
+                if hasCost {
+                    Badge(text: Fmt.usd(provider.window("all")?.cost ?? 0), tint: Theme.accentFg)
+                        .help("All-time estimated spend")
+                }
+                if !provider.tracked {
+                    Badge(text: "Not tracked")
+                }
             }
         }
     }
@@ -132,7 +172,7 @@ private struct ProviderCard: View {
     @ViewBuilder
     private var limitsBlock: some View {
         if let limits = state.limits {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Space.m) {
                 HStack {
                     SectionLabel(text: "Plan limits")
                     Spacer()
@@ -158,10 +198,12 @@ private struct ProviderCard: View {
                     ProgressTrack(fraction: extra.percent / 100)
                 }
             }
-            .padding(13)
-            .background(Theme.accent.opacity(0.05), in: RoundedRectangle(cornerRadius: 9))
+            .padding(Theme.Space.m)
+            .background(
+                Theme.accent.opacity(0.05),
+                in: RoundedRectangle(cornerRadius: Theme.Radius.block))
             .overlay(
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: Theme.Radius.block)
                     .strokeBorder(Theme.accent.opacity(0.16), lineWidth: 1))
         } else if let error = state.limitsError {
             ErrorBanner(message: error) { Task { await state.refreshLimits() } }
@@ -213,26 +255,29 @@ private struct ProviderCard: View {
                     }
                 }
             }
-            .padding(12)
+            .padding(Theme.Space.m)
             .background(
                 active ? Theme.accent.opacity(0.07) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 9)
+                in: RoundedRectangle(cornerRadius: Theme.Radius.block)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: Theme.Radius.block)
                     .strokeBorder(
-                        active ? Theme.accent.opacity(0.2) : Color(nsColor: .separatorColor),
+                        active
+                            ? AnyShapeStyle(Theme.accent.opacity(0.2))
+                            : AnyShapeStyle(.separator),
                         lineWidth: 1))
         }
     }
 
     private var windowGrid: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Space.s) {
             ForEach(["today", "week", "all"], id: \.self) { key in
                 if let w = provider.window(key) {
                     StatCell(
                         value: Fmt.tokens(w.total),
-                        label: hasCost ? "\(w.label) · \(Fmt.usd(w.cost))" : "\(w.label) · \(w.messages) turns"
+                        label: w.label,
+                        detail: hasCost ? Fmt.usd(w.cost) : "\(w.messages) turns"
                     )
                 }
             }

@@ -9,8 +9,10 @@ struct MenuBarPanel: View {
 
     @AppStorage("panel.tab") private var tabRaw = PanelTab.usage.rawValue
 
-    enum PanelTab: String, CaseIterable {
+    enum PanelTab: String, CaseIterable, Identifiable {
         case usage, ports
+
+        var id: String { rawValue }
 
         var title: String {
             switch self {
@@ -31,14 +33,25 @@ struct MenuBarPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabs
+            SegmentedTabs(
+                items: PanelTab.allCases,
+                selection: Binding(get: { tab }, set: { tabRaw = $0.rawValue })
+            ) { t in
+                Image(systemName: t.icon).font(.caption)
+                Text(t.title)
+            }
+            .padding(Theme.Space.s)
             Divider()
 
             ScrollView {
-                switch tab {
-                case .usage: UsageTab()
-                case .ports: PortsTab()
+                Group {
+                    switch tab {
+                    case .usage: UsageTab()
+                    case .ports: PortsTab()
+                    }
                 }
+                .id(tab)
+                .transition(.opacity)
             }
             .frame(maxHeight: 480)
 
@@ -50,31 +63,6 @@ struct MenuBarPanel: View {
             state.bootstrap()
             await state.refreshPorts()
         }
-    }
-
-    private var tabs: some View {
-        HStack(spacing: 4) {
-            ForEach(PanelTab.allCases, id: \.rawValue) { t in
-                Button {
-                    tabRaw = t.rawValue
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: t.icon).font(.caption)
-                        Text(t.title).font(.callout.weight(.medium))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        tab == t ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.clear),
-                        in: RoundedRectangle(cornerRadius: 6)
-                    )
-                    .foregroundStyle(tab == t ? .white : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(8)
     }
 
     private var footer: some View {
@@ -111,8 +99,8 @@ struct MenuBarPanel: View {
             .keyboardShortcut("q", modifiers: .command)
         }
         .labelStyle(.titleAndIcon)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.s)
     }
 }
 
@@ -126,8 +114,14 @@ private struct UsageTab: View {
     private var provider: ProviderUsage? { state.usage?.provider(agent) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            agentPicker
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            SegmentedTabs(
+                items: ToolID.allCases,
+                selection: Binding(get: { agent }, set: { agentRaw = $0.rawValue })
+            ) { tool in
+                AgentGlyph(tool: tool, size: 11)
+                Text(tool.shortName)
+            }
 
             if let provider {
                 header(provider)
@@ -168,37 +162,7 @@ private struct UsageTab: View {
                 .frame(maxWidth: .infinity, minHeight: 120)
             }
         }
-        .padding(12)
-    }
-
-    private var agentPicker: some View {
-        HStack(spacing: 4) {
-            ForEach(ToolID.allCases) { tool in
-                Button {
-                    agentRaw = tool.rawValue
-                } label: {
-                    HStack(spacing: 5) {
-                        AgentGlyph(tool: tool, size: 11)
-                        Text(tool.shortName).font(.callout.weight(.medium))
-                    }
-                    .padding(.vertical, 5)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        agent == tool
-                            ? AnyShapeStyle(Theme.accent.opacity(0.16))
-                            : AnyShapeStyle(.quaternary.opacity(0.4)),
-                        in: RoundedRectangle(cornerRadius: 6)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(
-                                agent == tool ? Theme.accent.opacity(0.5) : .clear, lineWidth: 1)
-                    )
-                    .foregroundStyle(agent == tool ? Theme.accentFg : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        .padding(Theme.Space.m)
     }
 
     private func header(_ provider: ProviderUsage) -> some View {
@@ -222,15 +186,18 @@ private struct UsageTab: View {
     @ViewBuilder
     private var claudeLimits: some View {
         if let limits = state.limits {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.Space.m) {
                 ForEach(limits.bars) { bar in
                     LimitBarRow(bar: bar, compact: true)
                 }
             }
-            .padding(12)
-            .background(Theme.accent.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+            .padding(Theme.Space.m)
+            .background(
+                Theme.accent.opacity(0.06),
+                in: RoundedRectangle(cornerRadius: Theme.Radius.block)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: Theme.Radius.block)
                     .strokeBorder(Theme.accent.opacity(0.18), lineWidth: 1)
             )
         } else if state.limitsLoading {
@@ -247,18 +214,25 @@ private struct UsageTab: View {
 
     private func stats(_ provider: ProviderUsage) -> some View {
         let hasCost = (provider.window("all")?.cost ?? 0) > 0
-        func line(_ key: String) -> String {
-            guard let w = provider.window(key) else { return "—" }
-            return hasCost ? "\(Fmt.tokens(w.total)) · \(Fmt.usd(w.cost))" : Fmt.tokens(w.total)
+        func cell(_ key: String, _ label: String) -> StatCell {
+            guard let w = provider.window(key) else {
+                return StatCell(value: "—", label: label)
+            }
+            return StatCell(
+                value: Fmt.tokens(w.total),
+                label: label,
+                detail: hasCost ? Fmt.usd(w.cost) : nil
+            )
         }
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: Theme.Space.s) {
             SectionLabel(text: "Local activity · estimated")
             LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8
+                columns: [GridItem(.flexible(), spacing: Theme.Space.s), GridItem(.flexible())],
+                spacing: Theme.Space.s
             ) {
-                StatCell(value: line("today"), label: "Today")
-                StatCell(value: line("week"), label: "Last 7 days")
-                StatCell(value: line("all"), label: "All time")
+                cell("today", "Today")
+                cell("week", "Last 7 days")
+                cell("all", "All time")
                 StatCell(value: "\(provider.sessions)", label: "Sessions")
             }
         }
@@ -289,6 +263,8 @@ private struct UsageTab: View {
 
 private struct PortsTab: View {
     @Environment(AppState.self) private var state
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -300,7 +276,7 @@ private struct PortsTab: View {
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, Theme.Space.xs)
 
             if let error = state.portsError {
                 ErrorBanner(message: error) {
@@ -309,7 +285,9 @@ private struct PortsTab: View {
             } else if state.ports.isEmpty {
                 EmptyStateView(
                     icon: "network.slash", title: "No listening ports",
-                    hint: "Start a dev server and refresh."
+                    hint: "Start a dev server and refresh.",
+                    actionLabel: "Refresh",
+                    action: { Task { await state.refreshPorts() } }
                 )
                 .frame(minHeight: 140)
             } else {
@@ -317,11 +295,20 @@ private struct PortsTab: View {
                     PortRow(port: port)
                 }
                 if state.ports.count > 16 {
-                    Text("+\(state.ports.count - 16) more · open BioLab")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                    Button {
+                        UserDefaults.standard.set(
+                            MainSection.ports.rawValue, forKey: "window.section")
+                        openWindow(id: "main")
+                        dismiss()
+                    } label: {
+                        Text("+\(state.ports.count - 16) more — open BioLab")
+                            .font(.caption)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accentFg)
                 }
             }
         }
@@ -330,40 +317,84 @@ private struct PortsTab: View {
     }
 }
 
+/// One port row with a two-step inline kill: the ✕ arms a confirm state
+/// (auto-disarms after 5 s), and failures surface right under the row instead
+/// of vanishing.
 private struct PortRow: View {
     @Environment(AppState.self) private var state
     let port: PortInfo
     @State private var hovering = false
+    @State private var confirming = false
+    @State private var killError: String?
 
     var body: some View {
-        HStack(spacing: 9) {
-            Text(String(port.port))
-                .font(.callout.weight(.semibold))
-                .monospaced()
-                .frame(width: 52, alignment: .leading)
-            Text(port.processName)
-                .font(.callout)
-                .lineLimit(1)
-                .help(port.command)
-            Spacer()
-            Text(String(port.pid))
-                .font(.caption)
-                .monospaced()
-                .foregroundStyle(.tertiary)
-            Button {
-                Task { _ = await state.killProcess(pid: port.pid, force: false) }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(
-                        hovering ? AnyShapeStyle(Theme.danger) : AnyShapeStyle(.quaternary))
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 9) {
+                Text(String(port.port))
+                    .font(.callout.weight(.semibold))
+                    .monospaced()
+                    .frame(width: 52, alignment: .leading)
+                Text(port.processName)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .help(port.command)
+                Spacer()
+                if confirming {
+                    HStack(spacing: 4) {
+                        Button("Kill") { kill() }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Theme.danger)
+                            .controlSize(.mini)
+                            .accessibilityLabel("Confirm kill \(port.processName)")
+                        Button {
+                            confirming = false
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .accessibilityLabel("Cancel")
+                    }
+                } else {
+                    Text(String(port.pid))
+                        .font(.caption)
+                        .monospaced()
+                        .foregroundStyle(.tertiary)
+                    Button {
+                        confirming = true
+                        killError = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(
+                                hovering ? AnyShapeStyle(Theme.danger) : AnyShapeStyle(.quaternary))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Kill \(port.processName) (SIGTERM)")
+                    .accessibilityLabel("Kill \(port.processName) on port \(port.port)")
+                }
             }
-            .buttonStyle(.plain)
-            .help("Kill \(port.processName) (SIGTERM)")
+            if let killError {
+                Text(killError)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.danger)
+                    .lineLimit(2)
+            }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Theme.Space.s)
         .padding(.vertical, 5)
         .background(hovering ? AnyShapeStyle(.quaternary.opacity(0.5)) : AnyShapeStyle(.clear))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
         .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .task(id: confirming) {
+            guard confirming else { return }
+            try? await Task.sleep(for: .seconds(5))
+            confirming = false
+        }
+    }
+
+    private func kill() {
+        confirming = false
+        Task { killError = await state.killProcess(pid: port.pid, force: false) }
     }
 }

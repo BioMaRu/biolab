@@ -44,7 +44,7 @@ struct AgentsScreen: View {
         .navigationTitle("Agents")
         .task { await state.refreshAgents() }
         .alert(
-            "Something went wrong",
+            "Action failed",
             isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })
         ) {
             Button("OK", role: .cancel) {}
@@ -54,7 +54,7 @@ struct AgentsScreen: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Space.m) {
             Picker("", selection: $section) {
                 ForEach(Section.allCases) { s in
                     Text(s.title).tag(s)
@@ -67,7 +67,7 @@ struct AgentsScreen: View {
             Spacer()
 
             // Live agent presence
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.Space.xs) {
                 ForEach(state.inventory?.tools ?? [], id: \.id) { tool in
                     HStack(spacing: 5) {
                         Circle()
@@ -89,9 +89,10 @@ struct AgentsScreen: View {
                 Image(systemName: "arrow.clockwise")
             }
             .help("Rescan agents")
+            .accessibilityLabel("Rescan agents")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.s)
     }
 }
 
@@ -108,7 +109,7 @@ private struct OverviewSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Fleet
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
                     SectionLabel(text: "Your agents")
                     HStack(spacing: 10) {
                         ForEach(inv.tools, id: \.id) { tool in
@@ -138,13 +139,17 @@ private struct OverviewSection: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(Theme.danger)
                         }
-                        .padding(12)
-                        .background(Theme.danger.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+                        .padding(Theme.Space.m)
+                        .background(
+                            Theme.danger.opacity(0.08),
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.block))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 9)
+                            RoundedRectangle(cornerRadius: Theme.Radius.block)
                                 .strokeBorder(Theme.danger.opacity(0.25), lineWidth: 1))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(broken) broken symlinks — fix in Symlinks")
                 } else {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.shield.fill").foregroundStyle(Theme.success)
@@ -158,15 +163,17 @@ private struct OverviewSection: View {
                         }
                         Spacer()
                     }
-                    .padding(12)
-                    .background(Theme.success.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+                    .padding(Theme.Space.m)
+                    .background(
+                        Theme.success.opacity(0.07),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.block))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 9)
+                        RoundedRectangle(cornerRadius: Theme.Radius.block)
                             .strokeBorder(Theme.success.opacity(0.22), lineWidth: 1))
                 }
 
                 // At a glance
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
                     SectionLabel(text: "At a glance")
                     let uniqueNames = state.mcpNames.count
                     let disabled =
@@ -203,11 +210,13 @@ private struct OverviewSection: View {
                     }
                     .controlSize(.small)
                 }
-                .padding(11)
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 9))
+                .padding(Theme.Space.m)
+                .background(
+                    .quaternary.opacity(0.3),
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.block))
             }
-            .padding(16)
-            .frame(maxWidth: 860, alignment: .leading)
+            .padding(Theme.Space.l)
+            .frame(maxWidth: Theme.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -225,7 +234,9 @@ private struct FleetCard: View {
             HStack {
                 AgentGlyph(tool: tool.id)
                     .frame(width: 26, height: 26)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                    .background(
+                        .quaternary.opacity(0.5),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 Text(tool.id.displayName).font(.callout.weight(.semibold))
                 Spacer()
                 Badge(
@@ -233,7 +244,7 @@ private struct FleetCard: View {
                     tint: tool.installed ? Theme.success : .secondary)
             }
             if tool.installed {
-                HStack(spacing: 16) {
+                HStack(spacing: Theme.Space.l) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("\(mcp)").font(.title3.weight(.semibold)).monospacedDigit()
                         Text("MCP").font(.caption2).foregroundStyle(.tertiary)
@@ -256,10 +267,9 @@ private struct FleetCard: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(13)
+        .padding(Theme.Space.m)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator, lineWidth: 1))
+        .card()
         .opacity(tool.installed ? 1 : 0.65)
     }
 }
@@ -277,7 +287,9 @@ private struct GlanceTile: View {
                 Image(systemName: icon)
                     .foregroundStyle(Theme.accentFg)
                     .frame(width: 30, height: 30)
-                    .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                    .background(
+                        Theme.accent.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(value)").font(.title3.weight(.semibold)).monospacedDigit()
                     Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -291,16 +303,19 @@ private struct GlanceTile: View {
             .padding(11)
             .background(
                 hovering ? Theme.accent.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 9)
+                in: RoundedRectangle(cornerRadius: Theme.Radius.block)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: Theme.Radius.block)
                     .strokeBorder(
-                        hovering ? Theme.accent.opacity(0.35) : Color(nsColor: .separatorColor),
+                        hovering ? AnyShapeStyle(Theme.accent.opacity(0.35)) : AnyShapeStyle(.separator),
                         lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.block))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .accessibilityLabel("\(value) \(label)")
     }
 }
 
@@ -311,35 +326,42 @@ private struct McpSection: View {
     @Binding var actionError: String?
 
     @State private var query = ""
-    @State private var selection: (name: String, tool: ToolID)?
+    @State private var selection: McpSelection?
     @State private var editor: McpEditorContext?
     @State private var confirmRemove = false
+
+    struct McpSelection: Equatable {
+        let name: String
+        let tool: ToolID
+    }
 
     private var names: [String] {
         let q = query.lowercased()
         return state.mcpNames.filter { q.isEmpty || $0.lowercased().contains(q) }
     }
 
-    var body: some View {
-        HSplitView {
-            VStack(spacing: 0) {
-                toolbar
-                Divider()
-                if state.mcpNames.isEmpty {
-                    EmptyStateView(
-                        icon: "powerplug", title: "No MCP servers yet",
-                        hint: "Connect a Model Context Protocol server to give your agents new tools."
-                    )
-                } else {
-                    matrix
-                }
-            }
-            .frame(minWidth: 460)
+    private var inspectorPresented: Binding<Bool> {
+        Binding(get: { selection != nil }, set: { if !$0 { selection = nil } })
+    }
 
-            if let sel = selection {
-                inspector(sel)
-                    .frame(minWidth: 260, idealWidth: 290, maxWidth: 340)
+    var body: some View {
+        VStack(spacing: 0) {
+            toolbar
+            Divider()
+            if state.mcpNames.isEmpty {
+                EmptyStateView(
+                    icon: "powerplug", title: "No MCP servers yet",
+                    hint: "Connect a Model Context Protocol server to give your agents new tools.",
+                    actionLabel: "Add Server",
+                    action: { editor = McpEditorContext(initial: nil, fixedTool: nil) }
+                )
+            } else {
+                matrix
             }
+        }
+        .inspector(isPresented: inspectorPresented) {
+            inspectorContent
+                .inspectorColumnWidth(min: 260, ideal: 290, max: 340)
         }
         .sheet(item: $editor) { context in
             McpEditorSheet(context: context, actionError: $actionError) {
@@ -350,14 +372,7 @@ private struct McpSection: View {
 
     private var toolbar: some View {
         HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField("Filter servers…", text: $query).textFieldStyle(.plain)
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7))
-            .frame(maxWidth: 260)
+            FilterField(prompt: "Filter servers…", text: $query, maxWidth: 260)
 
             Text("\(names.count) of \(state.mcpNames.count)")
                 .font(.caption)
@@ -372,8 +387,8 @@ private struct McpSection: View {
                 Label("Add server", systemImage: "plus")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, Theme.Space.s)
     }
 
     private var matrix: some View {
@@ -386,15 +401,13 @@ private struct McpSection: View {
                     }
                 } header: {
                     HStack {
-                        Text("SERVER").frame(maxWidth: .infinity, alignment: .leading)
+                        ColumnHeaderText(text: "Server")
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         ForEach(ToolID.allCases) { tool in
-                            Text(tool.shortName.uppercased()).frame(width: 86)
+                            ColumnHeaderText(text: tool.shortName).frame(width: 86)
                         }
                     }
-                    .font(.caption2.weight(.semibold))
-                    .kerning(0.5)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, Theme.Space.m)
                     .padding(.vertical, 6)
                     .background(.bar)
                 }
@@ -417,7 +430,7 @@ private struct McpSection: View {
                 cellButton(name: name, tool: tool).frame(width: 86)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Space.m)
         .padding(.vertical, 7)
         .background(
             selection?.name == name
@@ -426,10 +439,10 @@ private struct McpSection: View {
 
     private func cellButton(name: String, tool: ToolID) -> some View {
         let cell = state.mcpCell(name: name, tool: tool)
-        let isSelected = selection?.name == name && selection?.tool == tool
+        let isSelected = selection == McpSelection(name: name, tool: tool)
         return Button {
             if cell.configured {
-                selection = (name, tool)
+                selection = McpSelection(name: name, tool: tool)
             } else {
                 editor = McpEditorContext(initial: state.mcpAnyDefinition(name), fixedTool: tool)
             }
@@ -466,14 +479,27 @@ private struct McpSection: View {
             cell.configured
                 ? (cell.on ? "Enabled — click to manage" : "Disabled — click to manage")
                 : "Copy “\(name)” to \(tool.displayName)")
+        .accessibilityLabel(
+            cell.configured
+                ? "\(name) in \(tool.displayName): \(cell.on ? "enabled" : "disabled")"
+                : "Add \(name) to \(tool.displayName)")
     }
 
     @ViewBuilder
-    private func inspector(_ sel: (name: String, tool: ToolID)) -> some View {
+    private var inspectorContent: some View {
+        if let sel = selection {
+            inspector(sel)
+        } else {
+            EmptyStateView(icon: "powerplug", title: "No server selected")
+        }
+    }
+
+    @ViewBuilder
+    private func inspector(_ sel: McpSelection) -> some View {
         let cell = state.mcpCell(name: sel.name, tool: sel.tool)
         if let server = cell.server {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: Theme.Space.l) {
                     HStack {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(server.name).font(.headline).monospaced()
@@ -488,18 +514,18 @@ private struct McpSection: View {
                             Image(systemName: "xmark")
                         }
                         .buttonStyle(.borderless)
+                        .help("Close details")
+                        .accessibilityLabel("Close details")
                     }
 
                     HStack(spacing: 6) {
+                        Badge(text: server.transport)
                         Badge(
-                            text: server.transport,
-                            tint: .secondary)
-                        Badge(
-                            text: cell.on ? "enabled" : "disabled",
+                            text: cell.on ? "Enabled" : "Disabled",
                             tint: cell.on ? Theme.success : .secondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Theme.Space.xs) {
                         if server.transport == "http" {
                             SectionLabel(text: "URL")
                             defBox(server.url ?? "—")
@@ -559,9 +585,8 @@ private struct McpSection: View {
                         }
                     }
                 }
-                .padding(14)
+                .padding(Theme.Space.l)
             }
-            .background(.background.secondary)
             .confirmationDialog(
                 "Remove “\(sel.name)” from \(sel.tool.displayName)?",
                 isPresented: $confirmRemove
@@ -587,8 +612,10 @@ private struct McpSection: View {
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+            .padding(Theme.Space.s)
+            .background(
+                .quaternary.opacity(0.4),
+                in: RoundedRectangle(cornerRadius: Theme.Radius.control))
     }
 }
 
@@ -619,7 +646,7 @@ private struct McpEditorSheet: View {
     private var isEditing: Bool { context.initial != nil && context.fixedTool != nil }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Theme.Space.l) {
             Text(isEditing ? "Edit MCP server" : "Add MCP server").font(.headline)
 
             Form {
@@ -656,14 +683,18 @@ private struct McpEditorSheet: View {
                         TextEditor(text: $argsText)
                             .font(.callout.monospaced())
                             .frame(height: 58)
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.separator))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.control)
+                                    .strokeBorder(.separator))
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Environment — KEY=value per line").font(.caption).foregroundStyle(.secondary)
                         TextEditor(text: $envText)
                             .font(.callout.monospaced())
                             .frame(height: 44)
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.separator))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.control)
+                                    .strokeBorder(.separator))
                     }
                 } else {
                     TextField("URL", text: $url, prompt: Text("https://example.com/mcp"))
@@ -736,13 +767,19 @@ private struct McpEditorSheet: View {
         )
 
         saving = true
+        localError = nil
         let targetIDs = targets.map(\.rawValue)
         Task {
-            actionError = await state.mutateAgents {
+            // Keep the sheet (and the user's input) on failure — only a
+            // successful save dismisses.
+            if let error = await state.mutateAgents({
                 try AgentsService.mcpSync(base, targets: targetIDs)
+            }) {
+                localError = error
+            } else {
+                dismiss()
             }
             saving = false
-            dismiss()
         }
     }
 }
@@ -756,6 +793,9 @@ private struct SkillsSection: View {
     @State private var query = ""
     @State private var viewing: (name: String, content: String)?
     @State private var unlink: Skill?
+
+    /// Trailing actions column width (info button + share button).
+    private static let actionsWidth: CGFloat = 124
 
     private struct Group: Identifiable {
         let name: String
@@ -784,34 +824,37 @@ private struct SkillsSection: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                    TextField("Filter skills…", text: $query).textFieldStyle(.plain)
-                }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7))
-                .frame(maxWidth: 260)
+                FilterField(prompt: "Filter skills…", text: $query, maxWidth: 260)
 
                 Text("One source in ~/.agents/skills, linked everywhere.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Theme.Space.m)
+            .padding(.vertical, Theme.Space.s)
             Divider()
 
             if groups.isEmpty && query.isEmpty {
                 EmptyStateView(
                     icon: "sparkles", title: "No skills found",
                     hint: "Skills are reusable instruction folders your agents can load.")
+            } else if groups.isEmpty {
+                EmptyStateView(
+                    icon: "magnifyingglass", title: "No matching skills",
+                    hint: "Nothing matches “\(query)”.",
+                    actionLabel: "Clear Filter",
+                    action: { query = "" })
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(groups) { group in
-                            skillRow(group)
-                            Divider().opacity(0.5)
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        Section {
+                            ForEach(groups) { group in
+                                skillRow(group)
+                                Divider().opacity(0.5)
+                            }
+                        } header: {
+                            header
                         }
                     }
                 }
@@ -826,9 +869,9 @@ private struct SkillsSection: View {
                         Label("\(viewing.name)/SKILL.md", systemImage: "doc.text")
                             .font(.headline)
                         Spacer()
-                        Button("Done") { self.viewing = nil }.keyboardShortcut(.defaultAction)
+                        Button("Done") { self.viewing = nil }.keyboardShortcut(.cancelAction)
                     }
-                    .padding(14)
+                    .padding(Theme.Space.l)
                     Divider()
                     ScrollView {
                         Text(viewing.content)
@@ -836,14 +879,14 @@ private struct SkillsSection: View {
                             .monospaced()
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
+                            .padding(Theme.Space.l)
                     }
                 }
                 .frame(width: 620, height: 480)
             }
         }
         .confirmationDialog(
-            "Unlink “\(unlink?.name ?? "")” from \(unlink?.tool ?? "")? The central copy is kept.",
+            "Unlink “\(unlink?.name ?? "")” from \(Fmt.tool(unlink?.tool ?? ""))? The central copy is kept.",
             isPresented: Binding(get: { unlink != nil }, set: { if !$0 { unlink = nil } })
         ) {
             Button("Unlink", role: .destructive) {
@@ -856,6 +899,21 @@ private struct SkillsSection: View {
                 }
             }
         }
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            ColumnHeaderText(text: "Skill")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ColumnHeaderText(text: "Central").frame(width: 70)
+            ForEach(ToolID.allCases) { tool in
+                ColumnHeaderText(text: tool.shortName).frame(width: 70)
+            }
+            Spacer().frame(width: Self.actionsWidth)
+        }
+        .padding(.horizontal, Theme.Space.m)
+        .padding(.vertical, 6)
+        .background(.bar)
     }
 
     private func skillRow(_ group: Group) -> some View {
@@ -872,13 +930,11 @@ private struct SkillsSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            statusChip(group.byTool["central"], clickable: false, group: group, tool: nil)
+            statusChip(group.byTool["central"], group: group, tool: nil)
                 .frame(width: 70)
             ForEach(ToolID.allCases) { tool in
-                statusChip(
-                    group.byTool[tool.rawValue], clickable: true, group: group, tool: tool
-                )
-                .frame(width: 70)
+                statusChip(group.byTool[tool.rawValue], group: group, tool: tool)
+                    .frame(width: 70)
             }
 
             HStack(spacing: 6) {
@@ -893,6 +949,7 @@ private struct SkillsSection: View {
                 }
                 .buttonStyle(.borderless)
                 .help("View SKILL.md")
+                .accessibilityLabel("View \(group.name) SKILL.md")
 
                 Button(shared ? "Shared" : "Share to all") {
                     shareToAll(group)
@@ -901,45 +958,58 @@ private struct SkillsSection: View {
                 .disabled(shared)
                 .frame(width: 92)
             }
+            .frame(width: Self.actionsWidth, alignment: .trailing)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Space.m)
         .padding(.vertical, 7)
     }
 
+    /// Status chip per cell. Only real actions are clickable: linked chips
+    /// unlink, missing-but-linkable cells link. Everything else is a plain,
+    /// honest label with a tooltip.
     @ViewBuilder
-    private func statusChip(_ skill: Skill?, clickable: Bool, group: Group, tool: ToolID?)
-        -> some View
-    {
-        let (label, tint): (String, Color) =
-            if let skill {
-                skill.broken
-                    ? ("broken", Theme.danger)
-                    : skill.isSymlink ? ("linked", Theme.accentFg) : ("folder", .secondary)
+    private func statusChip(_ skill: Skill?, group: Group, tool: ToolID?) -> some View {
+        if let skill {
+            if skill.broken {
+                Badge(text: "Broken", tint: Theme.danger)
+                    .help("The symlink target no longer exists — repair or remove it in Symlinks")
+            } else if tool == nil {
+                Badge(text: "Source", tint: Theme.success)
+                    .help("Central copy — the source of truth")
+            } else if skill.isSymlink {
+                Button {
+                    unlink = skill
+                } label: {
+                    Badge(text: "Linked", tint: Theme.accentFg)
+                }
+                .buttonStyle(.plain)
+                .help("Symlinked to the central store — click to unlink")
+                .accessibilityLabel("Unlink \(group.name) from \(Fmt.tool(skill.tool))")
             } else {
-                ("—", Color.secondary.opacity(0.5))
+                Badge(text: "Folder")
+                    .help("A real folder lives here — “Share to all” moves it to the central store")
             }
-
-        Button {
-            guard clickable, let tool else { return }
-            if let skill {
-                if skill.isSymlink { unlink = skill }
-            } else if group.byTool["central"] != nil {
+        } else if let tool, group.byTool["central"] != nil {
+            Button {
                 Task {
                     actionError = await state.mutateAgents {
                         try AgentsService.skillLink(tool: tool.rawValue, name: group.name)
                     }
                 }
-            } else {
-                actionError = "Not shared yet — use “Share to all” to create a central copy first."
+            } label: {
+                Image(systemName: "plus")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
-        } label: {
-            Badge(text: label, tint: tint)
+            .buttonStyle(.plain)
+            .help("Link “\(group.name)” from the central store")
+            .accessibilityLabel("Link \(group.name) to \(tool.displayName)")
+        } else {
+            Text("—")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .help("Not present here — “Share to all” creates the central copy first")
         }
-        .buttonStyle(.plain)
-        .help(
-            skill == nil
-                ? "Click to link from central"
-                : skill!.isSymlink ? "Symlinked — click to unlink" : "Real folder here")
     }
 
     private func shareToAll(_ group: Group) {
@@ -991,14 +1061,7 @@ private struct SymlinksSection: View {
 
         VStack(spacing: 0) {
             HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                    TextField("Filter links…", text: $query).textFieldStyle(.plain)
-                }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7))
-                .frame(maxWidth: 260)
+                FilterField(prompt: "Filter links…", text: $query, maxWidth: 260)
 
                 if brokenCount > 0 {
                     Toggle(isOn: $brokenOnly) {
@@ -1014,13 +1077,13 @@ private struct SymlinksSection: View {
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Theme.Space.m)
+            .padding(.vertical, Theme.Space.s)
             Divider()
 
             if links.isEmpty {
                 EmptyStateView(
-                    icon: "link", title: brokenOnly ? "No broken links — nice." : "No symlinks found",
+                    icon: "link", title: brokenOnly ? "No broken symlinks" : "No symlinks found",
                     hint: brokenOnly ? nil : "Symlinks across your agents' skill folders show up here.")
             } else {
                 ScrollView {
@@ -1039,9 +1102,10 @@ private struct SymlinksSection: View {
             TextField("Target path", text: $repairTarget)
             Button("Save") {
                 if let link = repairing {
+                    let target = repairTarget
                     Task {
                         actionError = await state.mutateAgents {
-                            try AgentsService.symlinkRepair(path: link.path, target: repairTarget)
+                            try AgentsService.symlinkRepair(path: link.path, target: target)
                         }
                     }
                 }
@@ -1085,10 +1149,10 @@ private struct SymlinksSection: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
 
-            Badge(text: link.tool)
+            Badge(text: Fmt.tool(link.tool))
             Text(link.category).font(.caption2).foregroundStyle(.tertiary)
             Badge(
-                text: link.broken ? "broken" : "ok",
+                text: link.broken ? "Broken" : "OK",
                 tint: link.broken ? Theme.danger : Theme.success)
 
             HStack(spacing: 2) {
@@ -1100,6 +1164,7 @@ private struct SymlinksSection: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Repair (repoint)")
+                .accessibilityLabel("Repair symlink")
                 Button {
                     removing = link
                 } label: {
@@ -1108,9 +1173,10 @@ private struct SymlinksSection: View {
                 .buttonStyle(.borderless)
                 .foregroundStyle(Theme.danger)
                 .help("Remove")
+                .accessibilityLabel("Remove symlink")
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Space.m)
         .padding(.vertical, 6)
     }
 }
@@ -1129,7 +1195,7 @@ private struct ContextSection: View {
         let projects = files.filter { $0.scope != "global" }
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Theme.Space.l) {
                 Text("Instruction files your agents read on every run. Edits are backed up automatically.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -1139,8 +1205,8 @@ private struct ContextSection: View {
                     group("Projects", projects)
                 }
             }
-            .padding(14)
-            .frame(maxWidth: 860, alignment: .leading)
+            .padding(Theme.Space.l)
+            .frame(maxWidth: Theme.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .sheet(item: $editing) { file in
@@ -1167,7 +1233,8 @@ private struct ContextSection: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 28, height: 28)
                                 .background(
-                                    .quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+                                    .quaternary.opacity(0.4),
+                                    in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(spacing: 5) {
                                     Text(file.kind).font(.callout.weight(.medium))
@@ -1185,7 +1252,7 @@ private struct ContextSection: View {
                                     .truncationMode(.middle)
                             }
                             Spacer()
-                            Badge(text: file.tool)
+                            Badge(text: Fmt.tool(file.tool))
                             Text(
                                 file.exists
                                     ? "\(Fmt.bytes(file.bytes)) · \(Fmt.ago(file.modified))"
@@ -1203,7 +1270,10 @@ private struct ContextSection: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+                    .background(
+                        .quaternary.opacity(0.18),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                    .accessibilityLabel("Edit \(file.kind) for \(Fmt.tool(file.tool))")
                 }
             }
         }
@@ -1229,7 +1299,7 @@ private struct ContextEditorSheet: View {
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
                         Text(file.kind).font(.headline)
-                        Badge(text: file.tool)
+                        Badge(text: Fmt.tool(file.tool))
                         if dirty {
                             Circle().fill(Theme.warning).frame(width: 7, height: 7)
                                 .help("Unsaved changes")
@@ -1250,13 +1320,13 @@ private struct ContextEditorSheet: View {
                     .disabled(!dirty)
                     .buttonStyle(.borderedProminent)
             }
-            .padding(12)
+            .padding(Theme.Space.m)
             Divider()
 
             TextEditor(text: $content)
                 .font(.callout.monospaced())
                 .scrollContentBackground(.hidden)
-                .padding(8)
+                .padding(Theme.Space.s)
 
             Divider()
             HStack {
@@ -1271,13 +1341,17 @@ private struct ContextEditorSheet: View {
                     Text("Unsaved changes").font(.caption).foregroundStyle(Theme.warning)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, Theme.Space.m)
             .padding(.vertical, 7)
         }
         .frame(width: 680, height: 520)
         .onAppear {
             content = (try? AgentsService.contextRead(path: file.path)) ?? ""
             original = content
+        }
+        .onChange(of: content) {
+            // A fresh edit invalidates the last "Saved" acknowledgement.
+            status = nil
         }
         .confirmationDialog("You have unsaved changes. Discard them?", isPresented: $confirmDiscard) {
             Button("Discard", role: .destructive) { dismiss() }

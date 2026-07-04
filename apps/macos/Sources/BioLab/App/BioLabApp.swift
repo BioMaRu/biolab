@@ -6,6 +6,9 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Start the refresh loops immediately so the menu-bar label is live
+        // before the panel is ever opened.
+        AppState.shared.bootstrap()
     }
 }
 
@@ -19,7 +22,7 @@ struct BioLabApp: App {
             MenuBarPanel()
                 .environment(state)
         } label: {
-            Image(nsImage: Self.trayIcon)
+            TrayLabel(state: state)
         }
         .menuBarExtraStyle(.window)
 
@@ -35,11 +38,17 @@ struct BioLabApp: App {
                 }
         }
         .defaultSize(width: 980, height: 660)
+
+        Settings {
+            SettingsScreen()
+                .environment(state)
+                .frame(minWidth: 480)
+        }
     }
 
     /// Template menu-bar glyph — falls back to an SF Symbol if the bundled
     /// asset can't be loaded for any reason.
-    private static let trayIcon: NSImage = {
+    fileprivate static let trayIcon: NSImage = {
         if let url = Bundle.module.url(forResource: "tray", withExtension: "png"),
             let image = NSImage(contentsOf: url)
         {
@@ -52,4 +61,37 @@ struct BioLabApp: App {
         fallback.isTemplate = true
         return fallback
     }()
+}
+
+/// Menu-bar label: the tray glyph plus, optionally, the live Claude session
+/// usage — the number this app exists to keep in view. Tinted only when the
+/// limit turns warning/critical, so the menu bar stays quiet by default.
+private struct TrayLabel: View {
+    let state: AppState
+    @AppStorage("menubar.showUsage") private var showUsage = true
+
+    var body: some View {
+        if showUsage, let bar = sessionBar {
+            HStack(spacing: 3) {
+                Image(nsImage: BioLabApp.trayIcon)
+                Text("\(Int(bar.percent.rounded()))%")
+                    .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(
+                        bar.severity == "normal"
+                            ? AnyShapeStyle(.primary)
+                            : AnyShapeStyle(Theme.severity(bar.severity)))
+            }
+            .accessibilityLabel(
+                "BioLab — Claude session \(Int(bar.percent.rounded())) percent used")
+        } else {
+            Image(nsImage: BioLabApp.trayIcon)
+                .accessibilityLabel("BioLab")
+        }
+    }
+
+    private var sessionBar: LimitBar? {
+        guard let bars = state.limits?.bars else { return nil }
+        return bars.first { $0.kind == "session" } ?? bars.first
+    }
 }
