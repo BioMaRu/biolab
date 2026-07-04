@@ -31,6 +31,8 @@ final class AppState {
     var updateChecking = false
     var updateCheckedAt: Date?
     var updateError: String?
+    var updateInstalling = false
+    var updateInstallError: String?
     private var dismissedUpdateVersion: String? =
         UserDefaults.standard.string(forKey: "updates.dismissedVersion")
 
@@ -115,6 +117,24 @@ final class AppState {
     func dismissUpdate() {
         dismissedUpdateVersion = latestRelease?.version
         UserDefaults.standard.set(dismissedUpdateVersion, forKey: "updates.dismissedVersion")
+    }
+
+    /// Download the latest release and swap it in, then relaunch. On success
+    /// the app terminates and the helper reopens the updated build.
+    func installUpdate() async {
+        guard let release = latestRelease, !updateInstalling else { return }
+        updateInstalling = true
+        updateInstallError = nil
+        do {
+            let staged = try await UpdateService.downloadAndStage(release)
+            try UpdateService.install(stagedApp: staged)
+            // Give the helper a beat to start waiting, then quit so it can swap.
+            try? await Task.sleep(for: .milliseconds(250))
+            NSApp.terminate(nil)
+        } catch {
+            updateInstallError = error.localizedDescription
+            updateInstalling = false
+        }
     }
 
     // MARK: Refreshers

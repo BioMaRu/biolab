@@ -342,10 +342,15 @@ struct EmptyStateView: View {
 
 // MARK: - Update banner
 
-/// Dismissible "a newer version is available" banner linking to the release.
+/// Dismissible "a newer version is available" banner. The primary action
+/// downloads and installs the update in place; the subtitle links to the
+/// release notes.
 struct UpdateBanner: View {
     let version: String
-    let onView: () -> Void
+    var installing = false
+    var errorText: String?
+    let onUpdate: () -> Void
+    let onNotes: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -355,29 +360,43 @@ struct UpdateBanner: View {
                 .foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Update available").font(.callout.weight(.semibold))
-                Text("Version \(version) is ready to download.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let errorText {
+                    Text(errorText)
+                        .font(.caption)
+                        .foregroundStyle(Theme.danger)
+                        .lineLimit(2)
+                } else {
+                    Button(action: onNotes) {
+                        Text("Version \(version) · release notes")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open the release notes")
+                }
             }
             Spacer()
-            Button("View", action: onView)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
+            if installing {
+                ProgressView().controlSize(.small)
+                Text("Updating…").font(.caption).foregroundStyle(.secondary)
+            } else {
+                Button("Update", action: onUpdate)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tertiary)
+                .help("Dismiss until the next version")
+                .accessibilityLabel("Dismiss update notice")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tertiary)
-            .help("Dismiss until the next version")
-            .accessibilityLabel("Dismiss update notice")
         }
         .padding(10)
         .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.block))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.block)
                 .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Update available, version \(version)")
     }
 }
 

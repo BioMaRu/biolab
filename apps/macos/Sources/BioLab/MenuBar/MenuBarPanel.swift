@@ -60,7 +60,10 @@ struct MenuBarPanel: View {
             if state.showUpdateBanner, let release = state.latestRelease {
                 UpdateBanner(
                     version: release.version,
-                    onView: { NSWorkspace.shared.open(release.url) },
+                    installing: state.updateInstalling,
+                    errorText: state.updateInstallError,
+                    onUpdate: { Task { await state.installUpdate() } },
+                    onNotes: { NSWorkspace.shared.open(release.url) },
                     onDismiss: { state.dismissUpdate() }
                 )
                 .padding([.horizontal, .top], Theme.Space.s)

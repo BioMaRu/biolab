@@ -45,13 +45,21 @@ struct SettingsScreen: View {
                 Toggle("Check for updates automatically", isOn: $autoCheckUpdates)
                 LabeledContent("Status") {
                     HStack(spacing: 8) {
-                        if state.updateChecking {
+                        if state.updateInstalling {
+                            ProgressView().controlSize(.small)
+                            Text("Updating…").foregroundStyle(.secondary)
+                        } else if state.updateChecking {
                             ProgressView().controlSize(.small)
                             Text("Checking…").foregroundStyle(.secondary)
                         } else if state.updateAvailable, let release = state.latestRelease {
                             Text("v\(release.version) available")
                                 .foregroundStyle(Theme.accentFg)
-                            Button("View Release") {
+                            Button("Update & Relaunch") {
+                                Task { await state.installUpdate() }
+                            }
+                            .controlSize(.small)
+                            .buttonStyle(.borderedProminent)
+                            Button("Notes") {
                                 NSWorkspace.shared.open(release.url)
                             }
                             .controlSize(.small)
@@ -66,10 +74,12 @@ struct SettingsScreen: View {
                             Task { await state.checkForUpdates(manual: true) }
                         }
                         .controlSize(.small)
-                        .disabled(state.updateChecking)
+                        .disabled(state.updateChecking || state.updateInstalling)
                     }
                 }
-                if let at = state.updateCheckedAt {
+                if let error = state.updateInstallError {
+                    Text(error).font(.caption).foregroundStyle(Theme.danger)
+                } else if let at = state.updateCheckedAt {
                     Text("Last checked \(Fmt.ago(at)).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
