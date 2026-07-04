@@ -6,6 +6,7 @@ use commands::agents::{
     skill_link, skill_read, skill_share, symlink_create, symlink_remove, symlink_repair,
 };
 use commands::ports::{kill_process, list_ports, process_details};
+use commands::usage::{claude_usage_limits, scan_usage};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -65,7 +66,9 @@ pub fn run() {
             symlink_remove,
             symlink_repair,
             context_read,
-            context_write
+            context_write,
+            scan_usage,
+            claude_usage_limits
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

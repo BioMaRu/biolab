@@ -10,6 +10,7 @@ export const navItems: NavItem[] = [
 	{ label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
 	{ label: 'Ports', href: '/ports', icon: 'ports' },
 	{ label: 'Agents', href: '/agents', icon: 'agents' },
+	{ label: 'AI Usage', href: '/usage', icon: 'activity' },
 	{ label: 'Settings', href: '/settings', icon: 'settings' },
 ]
 
