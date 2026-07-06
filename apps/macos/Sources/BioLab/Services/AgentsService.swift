@@ -528,6 +528,31 @@ enum AgentsService {
         try fm.createSymbolicLink(at: link, withDestinationURL: central)
     }
 
+    /// Delete a skill entirely: the central source plus every tool symlink or
+    /// folder that carries this name. The real content (the one non-symlink
+    /// folder, wherever it lives) is backed up to ~/.biolab/backups first, and
+    /// broken links are swept up too.
+    static func skillRemove(name: String) throws {
+        let fm = FileManager.default
+        let locations: [URL] = ["central", "claude", "codex", "opencode"]
+            .compactMap { Paths.skillsDir($0)?.appending(path: name) }
+        // fileExists follows symlinks (false for broken ones); isSymlink catches
+        // the link itself either way — so this covers live folders, live links
+        // and dangling links.
+        let present = locations.filter { isSymlink($0.path) || fm.fileExists(atPath: $0.path) }
+        guard !present.isEmpty else {
+            throw AgentsError.message("Nothing to remove for “\(name)”.")
+        }
+        // The skill's actual content lives in exactly one real directory; back
+        // it up before deleting anything.
+        if let real = present.first(where: { !isSymlink($0.path) }) {
+            backupFile(real)
+        }
+        for loc in present {
+            try fm.removeItem(at: loc)
+        }
+    }
+
     // MARK: Symlinks
 
     /// Remove a symlink. Refuses non-symlinks for safety.

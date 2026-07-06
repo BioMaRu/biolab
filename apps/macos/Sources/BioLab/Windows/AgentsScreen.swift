@@ -809,9 +809,10 @@ private struct SkillsSection: View {
     @State private var query = ""
     @State private var viewing: (name: String, content: String)?
     @State private var unlink: Skill?
+    @State private var removing: Group?
 
-    /// Trailing actions column width (info button + share button).
-    private static let actionsWidth: CGFloat = 124
+    /// Trailing actions column width (info + share + remove buttons).
+    private static let actionsWidth: CGFloat = 152
 
     private struct Group: Identifiable {
         let name: String
@@ -915,6 +916,20 @@ private struct SkillsSection: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Remove “\(removing?.name ?? "")” everywhere? This deletes the central copy and every link across your agents. A backup is saved to ~/.biolab/backups first.",
+            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })
+        ) {
+            Button("Remove Skill", role: .destructive) {
+                if let group = removing {
+                    Task {
+                        actionError = await state.mutateAgents {
+                            try AgentsService.skillRemove(name: group.name)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var header: some View {
@@ -973,6 +988,15 @@ private struct SkillsSection: View {
                 .controlSize(.small)
                 .disabled(shared)
                 .frame(width: 92)
+
+                Button(role: .destructive) {
+                    removing = group
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Remove “\(group.name)” everywhere")
+                .accessibilityLabel("Remove \(group.name)")
             }
             .frame(width: Self.actionsWidth, alignment: .trailing)
         }
