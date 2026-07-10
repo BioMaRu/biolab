@@ -8,12 +8,12 @@ menu-bar quick panel.
 > **Searching:** prefer `rg` (ripgrep) over `grep`/`grep -r`. It is installed and
 > much faster; only fall back to `grep` if `rg` is genuinely unavailable.
 
-## ⚠️ Product direction: `apps/macos` (native Swift) is the primary app
+## Product direction: SwiftUI only
 
-As of 2026-07-05 BioLab is being rewritten as a **fully native SwiftUI app** in
-`apps/macos/` (Swift 6 / SwiftUI / SPM, macOS 14+). The Tauri + Svelte app in
-`apps/desktop/` is the **legacy implementation**, kept until the native app
-reaches full parity — prefer building new features natively.
+BioLab is a **fully native SwiftUI app** in `apps/macos/` (Swift 6 / SwiftUI /
+SPM, macOS 14+). The legacy Tauri/Svelte implementation has been removed. Build
+new features natively; do not introduce webview, Node/Bun, Svelte, Tauri, or
+Turborepo infrastructure.
 
 ### Native app rules (`apps/macos`)
 
@@ -36,42 +36,15 @@ reaches full parity — prefer building new features natively.
    (#3e63dd) via `Theme.swift`, semantic system colors for automatic
    light/dark.
 
-## Legacy web app rules (`apps/desktop` — Tauri + Svelte)
-
-1. **Bun only.** Never use npm / pnpm / yarn. The lockfile is `bun.lock`.
-2. **Turborepo monorepo.** Apps live in `apps/*`, shared code in `packages/*`.
-   Promote code into a package **only when there is a real second consumer** —
-   until then it lives in the app.
-3. **Svelte 5 runes only.** Use `$state` / `$derived` / `$props` / `$effect`.
-   No legacy stores, no `export let`. Reactive logic in `.ts` goes in
-   `*.svelte.ts` files. Shared state is a **singleton class instance**.
-4. **Thin routes, logic in `features/`.** Route files wire things together;
-   real logic lives in vertical feature slices under `src/features/*`.
-5. **Never fight the formatters.** Prettier + ESLint + Stylelint are the source
-   of truth. Run `bun run format` before committing.
-6. **Static SPA.** SvelteKit uses `@sveltejs/adapter-static` with `ssr = false`.
-   There is no server — anything that needs the OS goes through a **Tauri
-   command** (Rust, in `apps/desktop/src-tauri/`) invoked via `@tauri-apps/api`.
-7. **Styling = SCSS** with our own light/dark design tokens (see
-   `apps/desktop/src/style`). `[data-theme]` on `<html>` drives the theme. No
-   Tailwind, no external brand design system.
-
 ## Quality gate (run before committing)
 
 ```
-bun run format   # prettier --write
-bun run check    # svelte-check (types)
-bun run lint     # eslint + stylelint
-bun run build    # production build
+make mac         # release build and app bundle assembly
 ```
 
 ## Commands
 
-- `bun run tauri dev` — run the desktop app (from repo root; filters to `@biolab/desktop`)
-- `bun run tauri build` — package the `.app` / `.dmg`
-- `bun run dev` — run the SvelteKit dev server only (no native window)
-
-## Version discipline
-
-`prettier`, `prettier-plugin-svelte`, and `svelte` must be identical across every
-`package.json`; the root `overrides` block enforces it.
+- `make mac` — build the native macOS app in release mode
+- `make mac-dev` — fast debug build and launch
+- `make mac-run` — release build and launch
+- `make mac-dmg` — build a DMG in `apps/macos/dist`

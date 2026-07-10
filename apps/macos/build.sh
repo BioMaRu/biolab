@@ -19,10 +19,20 @@ VERSION="1.2.0"
 APP="dist/BioLab.app"
 BIN=".build/$CONFIG/BioLab"
 BUNDLE=".build/$CONFIG/BioLab_BioLab.bundle"
-ICON="../desktop/src-tauri/icons/icon.icns"
+ICON="Sources/BioLab/Resources/icon.icns"
+SWIFTPM_CACHE="$PWD/.build/swiftpm-cache"
+SWIFTPM_CONFIG="$PWD/.build/swiftpm-config"
+SWIFTPM_SECURITY="$PWD/.build/swiftpm-security"
+export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$PWD/.build/clang-module-cache}"
+mkdir -p "$SWIFTPM_CACHE" "$SWIFTPM_CONFIG" "$SWIFTPM_SECURITY" "$CLANG_MODULE_CACHE_PATH"
 
 echo "▸ swift build -c $CONFIG"
-swift build -c "$CONFIG"
+swift build -c "$CONFIG" \
+  --cache-path "$SWIFTPM_CACHE" \
+  --config-path "$SWIFTPM_CONFIG" \
+  --security-path "$SWIFTPM_SECURITY" \
+  --manifest-cache local \
+  --disable-sandbox
 
 echo "▸ assembling $APP"
 rm -rf "$APP"
@@ -30,7 +40,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN" "$APP/Contents/MacOS/BioLab"
 [ -d "$BUNDLE" ] && cp -R "$BUNDLE" "$APP/Contents/Resources/"
-[ -f "$ICON" ] && cp "$ICON" "$APP/Contents/Resources/icon.icns"
+cp "$ICON" "$APP/Contents/Resources/icon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

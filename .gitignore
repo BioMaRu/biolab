@@ -1,22 +1,7 @@
-node_modules
-**/node_modules
-.turbo
-**/.turbo
-
-# Output
-**/.svelte-kit
-**/build
-**/dist
-**/.output
-**/package
-
-# Rust / Tauri
-**/target
-**/gen/schemas
-
-# Swift (apps/macos)
+# Swift
 **/.build
 **/.swiftpm
+apps/macos/dist
 
 # Env
 .env
@@ -26,14 +11,10 @@ node_modules
 # Claude Code (share skills/ with the team; keep local settings private)
 .claude/settings.local.json
 
-# Updater signing keys — NEVER commit these
+# Signing keys — NEVER commit these
 *.key
 *.key.pub
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*

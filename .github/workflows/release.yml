@@ -13,30 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Build native app
+        run: make mac
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Package app archive
+        run: ditto -c -k --sequesterRsrc --keepParent apps/macos/dist/BioLab.app "BioLab-${GITHUB_REF_NAME}.zip"
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build & release
-        uses: tauri-apps/tauri-action@v0
+      - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: apps/desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: 'BioLab ${{ github.ref_name }}'
-          releaseBody: 'Automated release. Your installed BioLab will auto-update to this version.'
-          releaseDraft: false
-          prerelease: false
-          args: --target universal-apple-darwin
+        run: |
+          gh release create "$GITHUB_REF_NAME" "BioLab-${GITHUB_REF_NAME}.zip" \
+            --title "BioLab ${GITHUB_REF_NAME}" \
+            --notes "Automated native macOS release."

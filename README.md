@@ -10,65 +10,49 @@ context files).
 - **`apps/macos` — the app (primary)**: fully native **Swift 6 / SwiftUI**
   (SPM, macOS 14+). `MenuBarExtra` quick panel (AI Usage + Ports tabs) plus a
   full window (Ports · Agents · AI Usage · Settings). One dependency: TOMLKit.
-- **`apps/desktop` — legacy**: the original Tauri v2 + SvelteKit
-  implementation, kept until the native app reaches full parity.
 
 ## Layout
 
 ```
 apps/
-  macos/          # native SwiftUI app (primary) — Package.swift + build.sh
-  desktop/        # legacy SvelteKit UI + src-tauri/ (Rust)
-packages/         # shared code (added when a 2nd consumer appears)
+  macos/          # native SwiftUI app — Package.swift + build.sh
 ```
 
 ## Prerequisites
 
-- macOS 14+ and Xcode (full toolchain, for the native app)
-- Legacy app only: Rust + Cargo, Node 22+, Bun 1.3+
+- macOS 14+
+- Xcode with the full Swift toolchain
 
 ## Getting started
 
 ```bash
-make mac-run           # native app: release build → dist/BioLab.app → launch
-make mac-dev           # native app: fast debug build + launch
-
-# legacy Tauri app
-bun install
-bun run tauri dev
+make mac-run           # release build → apps/macos/dist/BioLab.app → launch
+make mac-dev           # fast debug build + launch
 ```
 
 ## Common commands
 
 ```bash
-bun run tauri dev      # run the desktop app
-bun run tauri build    # package .app / .dmg
-bun run dev            # SvelteKit dev server only (browser, no native window)
-bun run format         # prettier --write
-bun run check          # svelte-check (types)
-bun run lint           # eslint + stylelint
-bun run build          # production build
+make mac               # build the native macOS app
+make mac-dev           # debug build + launch
+make mac-run           # release build + launch
+make mac-dmg           # build a DMG in apps/macos/dist
 ```
 
-See `AGENTS.md` for conventions and the pre-commit quality gate.
+See `AGENTS.md` for native app conventions and verification guidance.
 
-## Releasing a new version (auto-update)
+## Releasing a new version
 
-BioLab auto-updates from GitHub Releases via `tauri-plugin-updater`. To ship an update:
+BioLab checks GitHub Releases for native app archives. To ship an update:
 
-1. Bump the version in **`apps/desktop/src-tauri/tauri.conf.json`** (and `apps/desktop/package.json`).
-2. Commit, then tag and push:
+1. Bump the `VERSION` value in **`apps/macos/build.sh`**.
+2. Commit the version change, then tag and push:
     ```bash
     git commit -am "release: v0.2.0"
     git tag v0.2.0
     git push origin main --tags
     ```
-3. The **`release` GitHub Action** builds a universal macOS app, signs the update, and publishes a GitHub Release with a `latest.json` manifest.
-4. Every installed copy of BioLab checks that manifest on launch (and via **Settings → Check for Updates**) and updates itself.
-
-**One-time setup on GitHub** (see the repo secrets):
-
-- `TAURI_SIGNING_PRIVATE_KEY` — the updater private key
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — its password
-
-The matching **public key** lives in `tauri.conf.json` (`plugins.updater.pubkey`). The repo must be **public** so the updater can fetch release assets without authentication.
+3. The **`release` GitHub Action** builds `BioLab.app`, packages it as a zip
+   asset, and publishes a GitHub Release.
+4. Installed copies can check for the latest release from **Settings → Check for
+   Updates** and install the zip asset.
