@@ -5,6 +5,9 @@ config manager (MCP / skills / symlinks / context files for Claude Code, Codex
 and OpenCode), an AI-usage dashboard with live Claude plan limits, and a
 menu-bar quick panel.
 
+> **Searching:** prefer `rg` (ripgrep) over `grep`/`grep -r`. It is installed and
+> much faster; only fall back to `grep` if `rg` is genuinely unavailable.
+
 ## ⚠️ Product direction: `apps/macos` (native Swift) is the primary app
 
 As of 2026-07-05 BioLab is being rewritten as a **fully native SwiftUI app** in
