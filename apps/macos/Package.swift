@@ -1,5 +1,5 @@
 // swift-tools-version:6.0
-// BioLab — native macOS developer toolkit (SwiftUI rewrite of apps/desktop).
+// BioLab — native macOS developer toolkit.
 
 import PackageDescription
 
@@ -15,7 +15,11 @@ let package = Package(
             name: "BioLab",
             dependencies: ["TOMLKit"],
             path: "Sources/BioLab",
-            resources: [.copy("Resources/tray.png"), .copy("Resources/Brands")],
+            resources: [
+                .copy("Resources/tray.png"),
+                .copy("Resources/icon.icns"),
+                .copy("Resources/Brands"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]
